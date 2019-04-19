@@ -1,0 +1,44 @@
+package qlikglue;
+
+
+import net.sourceforge.argparse4j.inf.ArgumentParser;
+import net.sourceforge.argparse4j.inf.ArgumentParserException;
+import org.apache.kafka.common.utils.Exit;
+import org.apache.log4j.ConsoleAppender;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
+import org.apache.log4j.PatternLayout;
+
+import static qlikglue.source.kafka.QlikGlueKafkaConsumer.argParser;
+import static qlikglue.source.kafka.QlikGlueKafkaConsumer.createFromArgs;
+
+public class QlikGlue {
+    public static void main(String[] args) {
+        //This is the root logger provided by log4j
+        Logger rootLogger = Logger.getRootLogger();
+        rootLogger.setLevel(Level.INFO);
+
+        //Define log pattern layout
+        PatternLayout layout = new PatternLayout("%d{ISO8601} [%t] %-5p %c %x - %m%n");
+
+        //Add console appender to root logger
+        rootLogger.addAppender(new ConsoleAppender(layout));
+
+        ArgumentParser parser = argParser();
+        if (args.length == 0) {
+            parser.printHelp();
+            Exit.exit(0);
+        }
+
+        try {
+            final QlikGlueKafkaConsumer consumer = createFromArgs(parser, args);
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> consumer.close()));
+
+            consumer.run();
+        } catch (ArgumentParserException e) {
+            parser.handleError(e);
+            Exit.exit(1);
+        }
+
+    }
+}

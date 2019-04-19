@@ -1,0 +1,22 @@
+
+
+# IntelliJ IDEA stuff
+.idea/
+
+# class files
+*.class
+
+# Package Files
+*.jar
+*.war
+*.ear
+
+# ignore artifacts from a build
+target/
+dependencies/
+deploy/
+
+# ignore anything in the doc _site and .sass-cache directories.
+# these are related to generation of the jekyll-based doc
+_site/
+.sass-cache

@@ -1,0 +1,124 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" 
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 
+                             http://maven.apache.org/xsd/maven-4.0.0.xsd">
+   <modelVersion>4.0.0</modelVersion>
+
+   <groupId>qlikglue</groupId>
+   <artifactId>qlikglue</artifactId>
+   <version>1.0.0.0</version>
+   <packaging>pom</packaging>
+
+   <name>Qlik Glue V1</name>
+   <description>
+      This project contains handlers to allow sources to deliver to various targets
+   </description>
+   <url>https://github.com/attunity/qlikglue</url>
+   <inceptionYear>2019</inceptionYear>
+
+   <licenses>
+     <license>
+       <name>Apache License 2.0</name>
+       <url>http://apache.org/licenses/LICENSE-2.0.html</url>
+       <distribution>repo</distribution>
+     </license>
+   </licenses>
+
+   <modules>
+      <module>qlikglue-core</module>
+      <module>qlikglue-publishers</module>
+   </modules>
+
+   <properties>
+      <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+      <maven.compiler.target>1.8</maven.compiler.target>
+      <maven.compiler.source>1.8</maven.compiler.source>
+      <maven.compiler.testTarget>1.8</maven.compiler.testTarget>
+      <maven.compiler.testSource>1.8</maven.compiler.testSource>
+      <!-- Default to something that indicates not set from the command line -->
+   </properties>
+
+   <dependencies>
+     <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>slf4j-api</artifactId>
+        <version>1.7.26</version>
+     </dependency>
+     <dependency>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-core</artifactId>
+        <version>2.9.8</version>
+     </dependency>
+     <dependency>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-databind</artifactId>
+        <version>2.9.8</version>
+     </dependency>
+     <dependency>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-annotations</artifactId>
+        <version>2.9.8</version>
+     </dependency>
+     <dependency>
+        <groupId>net.sourceforge.argparse4j</groupId>
+        <artifactId>argparse4j</artifactId>
+        <version>0.8.1</version>
+     </dependency>
+     <dependency>
+        <groupId>org.apache.kafka</groupId>
+        <artifactId>kafka-clients</artifactId>
+        <version>2.0.1</version>
+     </dependency>
+   </dependencies>
+
+   <build>
+      <plugins>
+         <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-javadoc-plugin</artifactId>
+            <version>2.10.1</version>
+            <configuration>
+                <links>
+                </links>
+                <bootclasspath>${sun.boot.class.path}</bootclasspath>
+                <additionalJOption>-J-Xmx1024m</additionalJOption>
+                <detectJavaApiLink>true</detectJavaApiLink>
+                <detectLinks>true</detectLinks>
+                <excludePackageNames>*.testing.*</excludePackageNames>
+            </configuration>
+            <executions>
+               <execution>
+                  <id>aggregate</id>
+                  <phase>site</phase>
+                  <goals>
+                      <goal>aggregate</goal>
+                  </goals>
+               </execution>
+            </executions>
+         </plugin>
+         <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-dependency-plugin</artifactId>
+            <version>2.10</version>
+            <executions>
+               <execution>
+                  <id>copy-dependencies</id>
+                  <phase>package</phase>
+                  <goals>
+                     <goal>copy-dependencies</goal>
+                  </goals>
+                  <configuration>
+                     <outputDirectory>${session.executionRootDirectory}/dependencies</outputDirectory>
+                     <excludeScope>system</excludeScope>
+                     <overWriteReleases>false</overWriteReleases>
+                     <overWriteSnapshots>false</overWriteSnapshots>
+                     <overWriteIfNewer>true</overWriteIfNewer>
+                     <excludeTransitive>false</excludeTransitive>
+                  </configuration>
+               </execution>
+            </executions>
+         </plugin>
+      </plugins>
+   </build>
+
+</project>
