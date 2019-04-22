@@ -16,10 +16,14 @@ package qlikglue.publisher.qlik;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qlikglue.common.PropertyManagement;
 
-import java.io.IOException;
-import java.io.StringReader;
+import org.apache.commons.io.output.ByteArrayOutputStream;
+
+import java.io.*;
 import java.net.URI;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
@@ -36,54 +40,94 @@ import javax.json.JsonObject;
 
 /**
  * Handles the websocket APIs needed to bridge between QlikGlue and the QlikSense server.
+ * This is a singleton.
  */
 @ClientEndpoint
-public class QlikSocket  extends Thread {
+public class QlikSocket  {
+    private static QlikSocket instance = null;
     private static final Logger LOG = LoggerFactory.getLogger(QlikSocket.class);
+    private static final boolean testOnly = true;
+    private int opCounter = 0;
+    private int totalOps = 0;
+    private Timer timer;
+    private TimerTask timerTask;
     private Session userSession = null;
-    private BlockingQueue<String> messageQueue;
     private String threadName;
+    private ByteArrayOutputStream baos;
     URI endpointURI;
 
-    // TODO: move these to properties
-    String URI = "ws://localhost:8080/jee7-websocket-api/chat";
-    int queueSize = 5;
+    // properties
+    String URI;
+    int maxBufferSize;
+    int flushFreq;
 
-    public QlikSocket(String threadName) {
+    private QlikSocket(String threadName) {
         this.threadName = threadName;
-        messageQueue = new ArrayBlockingQueue<>(queueSize);
-        //ws_init();
+        PropertyManagement properties = PropertyManagement.getProperties();
+        URI = properties.getProperty(QlikSocketProperties.QLIKSOCKET_URL,
+                QlikSocketProperties.QLIKSOCKET_URL_DEFAULT);
+        maxBufferSize = properties.asInt(QlikSocketProperties.QLIKSOCKET_MAXBUFFERSIZE,
+                QlikSocketProperties.QLIKSOCKET_MAXBUFFERSIZE_DEFAULT);
+        flushFreq = properties.asInt(QlikSocketProperties.QLIKSOCKET_FLUSH_FREQ,
+                QlikSocketProperties.QLIKSOCKET_FLUSH_FREQ_DEFAULT);
+        timer = new Timer();
+        baos = new ByteArrayOutputStream(65536);
+        // reinitialize things
+        resetBuffer();
+        publishEvents();
+        ws_init();
     }
 
     /**
-     * initialize websocket stuff
+     * Return the singleton instance of this class
+     * @return
      */
-    private void ws_init() {
-        try {
-            endpointURI = new URI(URI);
-            WebSocketContainer container = ContainerProvider
-                    .getWebSocketContainer();
-            container.connectToServer(this, endpointURI);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+    public static QlikSocket getInstance() {
+        if (instance == null) {
+            synchronized (QlikSocket.class) {
+                // double-check because of potential for race
+                if (instance == null) {
+                    instance = new QlikSocket("QLikSocket");
+                }
+            }
         }
-
+        return instance;
     }
 
-    @Override
-    public void run() {
-        /*
-         * Loop until terminated, reading messages from the queue and sending them
-         * on to Qlik.
-         */
-       while(!Thread.currentThread().isInterrupted()) {
-           try {
-               sendMessage(messageQueue.take());
-           } catch (InterruptedException e) {
-               LOG.info("messageQueue.take() interrupted", e);
-           }
 
-       }
+    /**
+     * Simple timer to ensure that we periodically flush whatever we have queued
+     * in the event that we haven't received "batchSize" events by the time
+     * that the timer has expired.
+     */
+    private class FlushQueuedEvents extends TimerTask {
+        public void run() {
+
+            publishEvents();
+        }
+    }
+
+    /**
+     * publish all events that we have queued up to Qlik. This is called both by
+     * the timer and by queueMessage(). Need to be sure they don't step on each other.
+     */
+    private void publishEvents() {
+
+        synchronized (baos) {
+            if (timerTask != null) {
+                timerTask.cancel();
+                timerTask = null;
+            }
+            if (opCounter > 0) {
+                opCounter = 0;
+                sendBuffer();
+                resetBuffer();
+            }
+
+            // ensure that we don't keep queued events around very long.
+            timerTask = new FlushQueuedEvents();
+            timer.schedule(timerTask, flushFreq);
+        }
     }
 
     private void shutdown() {
@@ -96,12 +140,12 @@ public class QlikSocket  extends Thread {
             LOG.trace("shutdown() timer");
         }
 
-        if ((messageQueue.size() != 0)) {
-            LOG.warn("shutdown(): Thread {} queue HAS NOT been drained. Depth: {}",
-                    threadName, messageQueue.size());
+        if ((baos.size() != 0)) {
+            LOG.warn("shutdown(): Thread {} baos HAS NOT been drained. Size: {}",
+                    threadName, baos.size());
         } else {
-            LOG.info("shutdown(): Thread {} queue has been drained. Depth: {}",
-                    threadName, messageQueue.size());
+            LOG.info("shutdown(): Thread {} baos has been drained. Size: {}",
+                    threadName, baos.size());
         }
 
     }
@@ -109,10 +153,10 @@ public class QlikSocket  extends Thread {
     /**
      * Call this method to terminate the thread and exit.
      */
-    public void cancel() {
+    public void cleanup() {
+        publishEvents();
+        timer.cancel();
         shutdown();
-
-        interrupt();
     }
 
     /**
@@ -127,6 +171,109 @@ public class QlikSocket  extends Thread {
                 .add("message", message)
                 .build()
                 .toString();
+    }
+
+
+    /**
+     * Send a message.
+     *
+     * @param message
+     */
+    private void sendMessage(String message) {
+        try {
+            // TODO: use getAsyncRemote() if we find we don't have to wait.
+            this.userSession.getBasicRemote().sendText(message);
+        } catch (IOException e) {
+            LOG.error("I/O Exception when sending message", e);
+        }
+    }
+
+    /**
+     * Send the contents of baos to the web socket
+     */
+    private void sendBuffer() {
+        if (!testOnly) {
+            sendMessage(baos.toString());
+        } else {
+            logToFile();
+        }
+    }
+
+    /**
+     * for testing purposes ... log to a file instead of sending to a socket.
+     */
+    private void logToFile() {
+        String filename = "/tmp/QlikSocket_" + totalOps;
+        try(OutputStream outputStream = new FileOutputStream(filename)) {
+            System.out.println("logging BAOS content to file: " + filename);
+            baos.writeTo(outputStream);
+        } catch (FileNotFoundException e) {
+            LOG.error("error writing buffer to file", e);
+        } catch (IOException e) {
+            LOG.error("IOException when writing buffer to file", e);
+        }
+    }
+
+    /**
+     * Process the message returned to onMessage().
+     * @param message
+     */
+    private void onMessageHandler(String message) {
+        JsonObject jsonObject = Json.createReader(new StringReader(message)).readObject();
+        String userName = jsonObject.getString("user");
+        if (!"bot".equals(userName)) {
+            sendMessage(formatMessage("Hello " + userName + ", How are you?"));
+            // other dirty bot logic goes here.. :)
+        }
+
+    }
+
+    private void resetBuffer() {
+        baos.reset();
+    }
+
+    /**
+     * Add a message to the output buffer.
+     *
+     * @param qlikTableBaos
+     */
+    public void queueMessage(ByteArrayOutputStream qlikTableBaos) {
+        opCounter++;
+        totalOps++;
+        synchronized(baos) {
+            try {
+                qlikTableBaos.writeTo(baos);
+                if (baos.size() >= maxBufferSize) {
+                    publishEvents();
+                }
+            } catch (IOException e) {
+                LOG.error("error adding message", e);
+            }
+        }
+    }
+
+    /***********************/
+    /* Websocket API calls */
+    /***********************/
+
+    /**
+     * initialize websocket stuff
+     */
+    private void ws_init() {
+        if (!testOnly) {
+            try {
+                endpointURI = new URI(URI);
+                WebSocketContainer container = ContainerProvider
+                        .getWebSocketContainer();
+                container.connectToServer(this, endpointURI);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        } else {
+            System.out.println("QlikSocket: running in TestOnly mode");
+            LOG.warn("Running in TestOnly mode");
+        }
+
     }
 
     /**
@@ -163,47 +310,6 @@ public class QlikSocket  extends Thread {
     @OnMessage
     public void onMessage(String message) {
         onMessageHandler(message);
-    }
-
-    /**
-     * Send a message.
-     *
-     * @param message
-     */
-    private void sendMessage(String message) {
-        /*
-        try {
-            // TODO: use getAsyncRemote() if we find we don't have to wait.
-            this.userSession.getBasicRemote().sendText(message);
-        } catch (IOException e) {
-            LOG.error("I/O Exception when sending message", e);
-        }
-        */
-        System.out.println(message);
-    }
-
-    /**
-     * Process the message returned to onMessage().
-     * @param message
-     */
-    private void onMessageHandler(String message) {
-        JsonObject jsonObject = Json.createReader(new StringReader(message)).readObject();
-        String userName = jsonObject.getString("user");
-        if (!"bot".equals(userName)) {
-            sendMessage(formatMessage("Hello " + userName + ", How are you?"));
-            // other dirty bot logic goes here.. :)
-        }
-
-    }
-
-    /**
-     * Add a message to the queue. Note that the add request will block
-     * if the queue is full.
-     *
-      * @param message
-     */
-    public void queueMessage(String message) {
-        messageQueue.add(message);
     }
 
 }

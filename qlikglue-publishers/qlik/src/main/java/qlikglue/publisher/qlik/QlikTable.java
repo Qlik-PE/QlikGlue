@@ -45,10 +45,9 @@ public class QlikTable {
     private Timer timer;
     private TimerTask timerTask;
     private ByteArrayOutputStream baos;
+    private QlikSocket qlikSocket;
     private static final String NEWLINE = System.getProperty("line.separator");
-    private static final String SINGLE_QUOTE = "\'";
-    private static final String DOUBLE_QUOTE = "\"";
-    
+
 
     private String tableName;
     
@@ -62,6 +61,7 @@ public class QlikTable {
         super();
         
         this.tableName = tableName;
+        qlikSocket = QlikSocket.getInstance();
         baos = new ByteArrayOutputStream();
         timer = new Timer();
         init();
@@ -289,7 +289,7 @@ public class QlikTable {
         publishEvents();
         // clean up the timer
         timer.cancel();
-        
+        qlikSocket.cleanup();
     }
     
     /**
@@ -316,10 +316,9 @@ public class QlikTable {
                 timerTask = null;
             }
             if (opCounter > 0) {
-                deliverBatch();
-                opCounter = 0;
                 writeBuffer("]"+ NEWLINE);
-                System.out.println(baos.toString()); //  dump to console for now
+                qlikSocket.queueMessage(baos); //  dump to console for now
+                opCounter = 0;
                 resetBuffer();
             }
 
@@ -328,12 +327,6 @@ public class QlikTable {
             timer.schedule(timerTask, flushFreq);
         }
     }
-
-
-    private void deliverBatch() {
-        // write the batch to Qlik
-    }
-
 
 
 }

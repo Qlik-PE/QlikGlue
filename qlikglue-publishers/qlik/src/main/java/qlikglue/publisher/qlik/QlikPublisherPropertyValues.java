@@ -31,18 +31,18 @@ public final class QlikPublisherPropertyValues {
     /**
      * The number of operations to batch together.
      */
-    public static final String QLIK_BATCH_SIZE = "qlikglue.bigquery.batch-size";
+    public static final String QLIK_BATCH_SIZE = "qlikglue.qlikpublisher.batch-size";
     public static final String QLIK_BATCH_SIZE_DEFAULT = "5";
     /**
-     * The frequency to flush operations if the batch-size isn't reached.
+     * The frequency to flush operations if the batch-size isn't reached (milliseconds).
      */
-    public static final String QLIK_FLUSH_FREQ = "qlikglue.bigquery.flush-frequency";
+    public static final String QLIK_FLUSH_FREQ = "qlikglue.qlikpublisher.flush-frequency";
     public static final String QLIK_FLUSH_FREQ_DEFAULT = "500";
     /**
      * Boolean: True if we want to convert deletes and updates into inserts. Assumes that
      * inclusion of operation type and timestamp has been specified in the properties.
      */
-    public static final String QLIK_INSERT_ONLY = "qlikglue.bigquery.insert-only";
+    public static final String QLIK_INSERT_ONLY = "qlikglue.qlikpublisher.insert-only";
     public static final String QLIK_INSERT_ONLY_DEFAULT = "true";
     
     
