@@ -123,7 +123,23 @@ public class PropertyManagement {
         
         return Integer.parseInt(value.trim());
     }
-    
+
+    /**
+     * Return the requested property as a long, setting a default
+     * value if it hasn't been initialized. No error checking is performed
+     * here. If the value of the property is not in fact representative
+     * of an integer, results will be indeterminent.
+     *
+     * @param property the name of the property
+     * @param defaultValue the default value
+     * @return the value of the property as a long.
+     */
+    public long asLong(String property, String defaultValue) {
+        String value = getProperty(property, defaultValue);
+
+        return Integer.parseInt(value.trim());
+    }
+
     /**
      * Return the requested property as a boolean value, setting a default 
      * value if it hasn't been initialized. No error checking is performed

@@ -27,6 +27,7 @@
    <modules>
       <module>qlikglue-core</module>
       <module>qlikglue-publishers</module>
+      <module>qlik-api</module>
    </modules>
 
    <properties>

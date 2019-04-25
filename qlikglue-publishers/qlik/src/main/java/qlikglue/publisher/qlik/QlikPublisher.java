@@ -13,6 +13,8 @@
  */
 package qlikglue.publisher.qlik;
 
+import qlikglue.common.DataAccumulator;
+import qlikglue.common.PropertyManagement;
 import qlikglue.encoder.EventData;
 import qlikglue.encoder.EventHeader;
 import qlikglue.meta.transaction.DownstreamOperation;
@@ -27,11 +29,16 @@ import org.slf4j.LoggerFactory;
  * Publish event data to Qlik. 
  *
  */
-public class QlikPublisher implements QlikGluePublisher {
+public class QlikPublisher extends DataAccumulator implements QlikGluePublisher {
     private static final Logger LOG = LoggerFactory.getLogger(QlikPublisher.class);
 
-
+    private int batchSize;
+    private int flushFreq;
+    private boolean insertOnly;
+    private int opCount = 0;
+    private int totalOps = 0;
     private HashMap<String, QlikTable> tables;
+    private QlikSocket qlikSocket;
 
 
 
@@ -39,7 +46,60 @@ public class QlikPublisher implements QlikGluePublisher {
         super();
 
         tables = new HashMap<>();
+        qlikSocket = QlikSocket.getInstance();
+        init();
     }
+
+    private void init() {
+        PropertyManagement properties = PropertyManagement.getProperties();
+
+        batchSize =
+                properties.asInt(QlikPublisherPropertyValues.QLIK_BATCH_SIZE,
+                        QlikPublisherPropertyValues.QLIK_BATCH_SIZE_DEFAULT);
+        flushFreq =
+                properties.asInt(QlikPublisherPropertyValues.QLIK_FLUSH_FREQ,
+                        QlikPublisherPropertyValues.QLIK_FLUSH_FREQ_DEFAULT);
+        insertOnly =
+                properties.asBoolean(QlikPublisherPropertyValues.QLIK_INSERT_ONLY,
+                        QlikPublisherPropertyValues.QLIK_INSERT_ONLY_DEFAULT);
+
+        setBatchSize(batchSize);
+        setFlushFreq(flushFreq);
+
+        /*
+         * Currently, best practice recommendation from Google is to create something similar to
+         * an audit table that will be post processed into final destination via an ETL job.
+         */
+        if (insertOnly == false) {
+            LOG.warn("QlikTable(): updates and deletes not currently supported. Defaulting to insertOnly");
+            insertOnly = true;
+        }
+
+        // reinitialize things
+        resetBuffer();
+        publishEvents();
+    }
+
+    protected int bufferSize() {
+        return opCount;
+    }
+
+    protected void resetBuffer() {
+        opCount = 0;
+    }
+
+    protected void sendBuffer() {
+        System.out.println("sendBuffer()");
+        // send any queued operations on to QlikSocket
+        for(QlikTable qlikTable : tables.values()) {
+            qlikTable.sendBuffer();
+        }
+        // send the buffer to the target
+        qlikSocket.sendBuffer();
+
+        resetBuffer();
+    }
+
 
     @Override
     public void connect() {
@@ -51,12 +111,15 @@ public class QlikPublisher implements QlikGluePublisher {
     @Override
     public void cleanup() {
         LOG.info("disconnecting from Qlik");
-        
+
         for(QlikTable qlikTable : tables.values()) {
             qlikTable.cleanup();
         }
+        publishEvents();
+        qlikSocket.cleanup();
 
-        // TODO: there does not appear to be a close / disconnect API. Confirm. 
+        super.cleanup();
+        // TODO: there does not appear to be a close / disconnect API. Confirm.
         //qlik.close();
     }
 
@@ -77,6 +140,8 @@ public class QlikPublisher implements QlikGluePublisher {
         }
         
         qlikTable.addOperation((DownstreamOperation)evt.eventBody());
+        opCount++;
+        totalOps++;
     }
     
 

@@ -11,8 +11,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package qlikglue;
+package qlikapi;
 
 /**
- * Some top level classes leveraged by the subpackages.
+ * Some top level classes to faciliate use of the Qlik Engine JSON API
  */

@@ -31,7 +31,6 @@ import qlikglue.meta.schema.DownstreamTableMetaData;
 import qlikglue.meta.transaction.DownstreamColumnData;
 import qlikglue.meta.transaction.DownstreamOperation;
 
-import java.sql.Types;
 import java.util.List;
 
 

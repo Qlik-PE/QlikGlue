@@ -13,7 +13,6 @@
  */
 package qlikglue.publisher.qlik;
 
-import qlikglue.common.PropertyManagement;
 import qlikglue.meta.schema.DownstreamColumnMetaData;
 import qlikglue.meta.transaction.DownstreamColumnData;
 import qlikglue.meta.transaction.DownstreamOperation;
@@ -21,8 +20,6 @@ import qlikglue.meta.transaction.DownstreamOperation;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Map;
-import java.util.Timer;
-import java.util.TimerTask;
 
 import org.apache.commons.io.output.ByteArrayOutputStream;
 
@@ -35,18 +32,15 @@ import org.slf4j.LoggerFactory;
  */
 public class QlikTable {
     private static final Logger LOG = LoggerFactory.getLogger(QlikTable.class);
-    
+
     private int opCounter = 0;
     private int totalOps = 0;
-    private int batchSize = 0;
-    private boolean insertOnly;
     private boolean bufferEmpty;
-    private int flushFreq = 500;
-    private Timer timer;
-    private TimerTask timerTask;
     private ByteArrayOutputStream baos;
-    private QlikSocket qlikSocket;
+    private QlikLoad qlikLoad;
     private static final String NEWLINE = System.getProperty("line.separator");
+    private static final char EMPTY ='\0';
+    private static final char COMMA =',';
 
 
     private String tableName;
@@ -61,37 +55,37 @@ public class QlikTable {
         super();
         
         this.tableName = tableName;
-        qlikSocket = QlikSocket.getInstance();
+        qlikLoad = QlikLoad.getInstance();
         baos = new ByteArrayOutputStream();
-        timer = new Timer();
         init();
     }
     
     private void init() {
-        PropertyManagement properties = PropertyManagement.getProperties();
-        
-        batchSize =
-            properties.asInt(QlikPublisherPropertyValues.QLIK_BATCH_SIZE,
-                             QlikPublisherPropertyValues.QLIK_BATCH_SIZE_DEFAULT);
-        flushFreq =
-            properties.asInt(QlikPublisherPropertyValues.QLIK_FLUSH_FREQ,
-                             QlikPublisherPropertyValues.QLIK_FLUSH_FREQ_DEFAULT);
-        insertOnly =
-            properties.asBoolean(QlikPublisherPropertyValues.QLIK_INSERT_ONLY,
-                                 QlikPublisherPropertyValues.QLIK_INSERT_ONLY_DEFAULT);
-        
-        /*
-         * Currently, best practice recommendation from Google is to create something similar to
-         * an audit table that will be post processed into final destination via an ETL job.
-         */
-        if (insertOnly == false) {
-            LOG.warn("QlikTable(): updates and deletes not currently supported. Defaulting to insertOnly");
-            insertOnly = true;
-        }
-
         // reinitialize things
         resetBuffer();
-        publishEvents();
+        sendBuffer();
+    }
+
+
+    /**
+     * Flush any queued events so we can prepare for shutdown.
+     */
+    public void cleanup() {
+        LOG.info("Cleaning up table {} in preparation for shutdown", tableName);
+        // flush any pending events
+        sendBuffer();
+    }
+
+    /**
+     * Flush all events that we have queued up to Qlik.
+     */
+    public void sendBuffer() {
+        if (opCounter > 0) {
+            appendBUffer("];" + NEWLINE + NEWLINE);
+            qlikLoad.appendBuffer(baos);
+            opCounter = 0;
+            resetBuffer();
+        }
     }
 
 
@@ -102,37 +96,35 @@ public class QlikTable {
      */
     public void addOperation(DownstreamOperation op) {
 
-            synchronized (this) {
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("event #{}", totalOps);
+        }
+        if (bufferEmpty) {
+            bufferEmpty = false;
+            // TODO: add code to use ADD LOAD for "RELOAD", and "ADD ONLY LOAD" for CDC
+            //appendBUffer(String.format("%s: %nADD LOAD * INLINE [%n%s%n", tableName, formatHdr(op)));
+            appendBUffer(String.format("%s: %nADD ONLY LOAD * INLINE [%n%s%n", tableName, formatHdr(op)));
+        }
 
+        appendBUffer(formatRow(op));
 
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("event #{}", totalOps);
-                }
-                if (bufferEmpty) {
-                    bufferEmpty = false;
-                    writeBuffer(String.format("%s: %nADD LOAD * INLINE [%n%s%n", tableName, formatHdr(op)));
-                }
-
-                writeBuffer(formatRow(op));
-
-                opCounter++;
-                totalOps++;
-                // publish batch and commit.
-                if (opCounter >= batchSize) {
-                    publishEvents();
-                }
-            }
-
-
-        return;
+        opCounter++;
+        totalOps++;
     }
 
+    /**
+     * Reset our output buffer to prepare for the next batch.
+     */
     private void resetBuffer() {
         baos.reset();
         bufferEmpty = true;
     }
 
-    private void writeBuffer(String s) {
+    /**
+     * Append this string to the output buffer.
+     * @param s
+     */
+    private void appendBUffer(String s) {
         try {
             baos.write(s.getBytes());
         } catch (IOException e) {
@@ -140,17 +132,22 @@ public class QlikTable {
         }
     }
 
+    /**
+     * Format a delimited row of data values
+     * @param op a DownStreamOperation from the publisher
+     * @return the row as a String
+     */
     private String formatRow(DownstreamOperation op) {
         StringBuilder rowContent = new StringBuilder(256);
 
         /*
          * populate the meta columns requested in the properties (op type, timestamp, etc.)
          */
-        char comma = '\0';
+        char delimiter = EMPTY;
         for(Map.Entry<String, String> opMeta : op.getOpMetadata().entrySet()) {
-            if (comma != '\0') rowContent.append(comma);
+            if (delimiter != EMPTY) {rowContent.append(delimiter);}
             rowContent.append(opMeta.getValue());
-            comma = ',';
+            delimiter = COMMA;
         }
 
 
@@ -161,7 +158,7 @@ public class QlikTable {
         DownstreamColumnData col;
         DownstreamColumnMetaData meta;
         String value;
-        comma = '\0';
+        delimiter = EMPTY;
         for (int i = 0; i < cols.size(); i++) {
             col = cols.get(i);
             meta = colsMeta.get(i);
@@ -171,26 +168,31 @@ public class QlikTable {
              * row, which would be very expensive.
              */
             value = getDataValue(meta.getJdbcType(), col);
-            if (comma != '\0') rowContent.append(comma);
+            if (delimiter != EMPTY) rowContent.append(delimiter);
             rowContent.append(value);
-            comma = ',';
+            delimiter = COMMA;
         }
         rowContent.append(NEWLINE);
 
         return rowContent.toString();
     }
 
+    /**
+     * Format a delimited row of header (i.e. column name) values
+     * @param op a DownStreamOperation from the publisher
+     * @return the header row as a String
+     */
     private String formatHdr(DownstreamOperation op) {
         StringBuilder hdrContent = new StringBuilder(256);
 
         /*
          * populate the meta columns requested in the properties (op type, timestamp, etc.)
          */
-        char comma = '\0';
+        char delimiter = EMPTY;
         for(Map.Entry<String, String> opMeta : op.getOpMetadata().entrySet()) {
-            if (comma != '\0') hdrContent.append(comma);
+            if (delimiter != EMPTY) hdrContent.append(delimiter);
             hdrContent.append(opMeta.getKey());
-            comma = ',';
+            delimiter = COMMA;
         }
 
 
@@ -201,7 +203,7 @@ public class QlikTable {
         DownstreamColumnData col;
         DownstreamColumnMetaData meta;
         String value;
-        comma = '\0';
+        delimiter = EMPTY;
         for (int i = 0; i < cols.size(); i++) {
             col = cols.get(i);
             meta = colsMeta.get(i);
@@ -211,9 +213,9 @@ public class QlikTable {
              * row, which would be very expensive.
              */
             value = getDataValue(meta.getJdbcType(), col);
-            if (comma != '\0') hdrContent.append(comma);
+            if (delimiter != EMPTY) hdrContent.append(delimiter);
             hdrContent.append(col.getBDName());
-            comma = ',';
+            delimiter = COMMA;
         }
 
         return hdrContent.toString();
@@ -277,56 +279,5 @@ public class QlikTable {
         }
         return value;
     }
-
-
-    /**
-     * Flush any queued events and clean up timer in
-     * preparation for shutdown.
-     */
-    public void cleanup() {
-        LOG.info("Cleaning up table {} in preparation for shutdown", tableName);
-        // flush any pending events
-        publishEvents();
-        // clean up the timer
-        timer.cancel();
-        qlikSocket.cleanup();
-    }
-    
-    /**
-     * Simple timer to ensure that we periodically flush whatever we have queued
-     * in the event that we haven't received "batchSize" events by the time
-     * that the timer has expired.
-     */
-    private class FlushQueuedEvents extends TimerTask {
-        public void run() {
-
-            publishEvents();
-        }
-    }
-
-    /**
-     * publish all events that we have queued up to Qlik. This is called both by
-     * the timer and by writeEvent(). Need to be sure they don't step on each other.
-     */
-    private void publishEvents() {
-
-        synchronized (this) {
-            if (timerTask != null) {
-                timerTask.cancel();
-                timerTask = null;
-            }
-            if (opCounter > 0) {
-                writeBuffer("]"+ NEWLINE);
-                qlikSocket.queueMessage(baos); //  dump to console for now
-                opCounter = 0;
-                resetBuffer();
-            }
-
-            // ensure that we don't keep queued events around very long.
-            timerTask = new FlushQueuedEvents();
-            timer.schedule(timerTask, flushFreq);
-        }
-    }
-
 
 }

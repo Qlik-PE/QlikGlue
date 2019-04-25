@@ -37,7 +37,7 @@ public final class QlikPublisherPropertyValues {
      * The frequency to flush operations if the batch-size isn't reached (milliseconds).
      */
     public static final String QLIK_FLUSH_FREQ = "qlikglue.qlikpublisher.flush-frequency";
-    public static final String QLIK_FLUSH_FREQ_DEFAULT = "500";
+    public static final String QLIK_FLUSH_FREQ_DEFAULT = "5000";
     /**
      * Boolean: True if we want to convert deletes and updates into inserts. Assumes that
      * inclusion of operation type and timestamp has been specified in the properties.
