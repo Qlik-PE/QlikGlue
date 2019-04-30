@@ -122,7 +122,8 @@ public class DocApi {
     /**
      * Quick test of APIs.
      *
-     * @param args
+     * @param args the arguments passed in on the command line.
+     * @throws Exception runtime exceptions
      */
     public static void main(String[] args) throws Exception  {
         DocApi docApi = new DocApi();

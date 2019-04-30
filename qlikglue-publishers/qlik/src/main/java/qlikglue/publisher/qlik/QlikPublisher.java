@@ -20,7 +20,7 @@ import qlikglue.encoder.EventHeader;
 import qlikglue.meta.transaction.DownstreamOperation;
 import qlikglue.publisher.QlikGluePublisher;
 
-import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,16 +37,16 @@ public class QlikPublisher extends DataAccumulator implements QlikGluePublisher 
     private boolean insertOnly;
     private int opCount = 0;
     private int totalOps = 0;
-    private HashMap<String, QlikTable> tables;
-    private QlikSocket qlikSocket;
+    private ConcurrentHashMap<String, QlikTable> tables;
+    private QlikLoad qlikLoad;
 
 
 
     public QlikPublisher() {
         super();
 
-        tables = new HashMap<>();
-        qlikSocket = QlikSocket.getInstance();
+        tables = new ConcurrentHashMap<>();
+        qlikLoad = QlikLoad.getInstance();
         init();
     }
 
@@ -89,13 +89,12 @@ public class QlikPublisher extends DataAccumulator implements QlikGluePublisher 
     }
 
     protected void sendBuffer() {
-        System.out.println("sendBuffer()");
         // send any queued operations on to QlikSocket
         for(QlikTable qlikTable : tables.values()) {
             qlikTable.sendBuffer();
         }
         // send the buffer to the target
-        qlikSocket.sendBuffer();
+        qlikLoad.sendBuffer();
 
         resetBuffer();
     }
@@ -116,7 +115,7 @@ public class QlikPublisher extends DataAccumulator implements QlikGluePublisher 
             qlikTable.cleanup();
         }
         publishEvents();
-        qlikSocket.cleanup();
+        qlikLoad.cleanup();
 
         super.cleanup();
         // TODO: there does not appear to be a close / disconnect API. Confirm.

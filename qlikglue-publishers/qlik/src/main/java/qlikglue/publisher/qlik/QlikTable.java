@@ -99,9 +99,13 @@ public class QlikTable {
         if (LOG.isDebugEnabled()) {
             LOG.debug("event #{}", totalOps);
         }
+        if (op.getOpTypeId() == DownstreamOperation.REFRESH_ID) {
+            TruncateLatch.getInstance().getLatch();
+        } else {
+            TruncateLatch.getInstance().clearLatch();
+        }
         if (bufferEmpty) {
             bufferEmpty = false;
-            // TODO: add code to use ADD LOAD for "RELOAD", and "ADD ONLY LOAD" for CDC
             //appendBUffer(String.format("%s: %nADD LOAD * INLINE [%n%s%n", tableName, formatHdr(op)));
             appendBUffer(String.format("%s: %nADD ONLY LOAD * INLINE [%n%s%n", tableName, formatHdr(op)));
         }
@@ -201,18 +205,14 @@ public class QlikTable {
 
 
         DownstreamColumnData col;
-        DownstreamColumnMetaData meta;
-        String value;
         delimiter = EMPTY;
         for (int i = 0; i < cols.size(); i++) {
             col = cols.get(i);
-            meta = colsMeta.get(i);
             /*
              * col data and meta data should always be in the same order.
              * I would check, but we will be doing this for every column on every
              * row, which would be very expensive.
              */
-            value = getDataValue(meta.getJdbcType(), col);
             if (delimiter != EMPTY) hdrContent.append(delimiter);
             hdrContent.append(col.getBDName());
             delimiter = COMMA;

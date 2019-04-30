@@ -17,6 +17,7 @@ import qlikglue.QlikGluePropertyValues;
 import qlikglue.QlikGlueVersion;
 import qlikglue.common.JsonField;
 import qlikglue.common.JsonHelper;
+import qlikglue.common.JsonRecord;
 import qlikglue.common.PropertyManagement;
 import qlikglue.encoder.EncoderFactory;
 import qlikglue.encoder.EncoderType;
@@ -129,28 +130,25 @@ public class KafkaJsonHandler {
      * @param record the kafka message "value" ... i.e. the actual data.
      */
     public void newRecord(String topic, int partition, long offset, String key, String record) {
-        String tableName;
-        String opType;
-        String timestamp;
-        String position;
-        String userTokens;
-        String txId;
 
-        tableName = topic;
-        userTokens = "NONE";
+        //List<JsonField> parsedRecord = jsonHelper.parseRecord(tableName, record);
+        //DownstreamTableMetaData tableMetaData = getMetaData(tableName, parsedRecord);
+        JsonRecord parsedRecord = new JsonRecord(topic, partition, offset, key, record);
 
+        String tableName = parsedRecord.getTableName();
+        String opType = parsedRecord.getOpType();
+        String timestamp = parsedRecord.getTimestamp();
+        String position = parsedRecord.getPosition();
+        String userTokens = parsedRecord.getUserTokens();
+        String txId = parsedRecord.getTxId();
+        String changeSequence = parsedRecord.getChangeSequence();
+        DownstreamTableMetaData tableMetaData = getMetaData(tableName, parsedRecord.getData());
 
-        List<JsonField> parsedRecord = jsonHelper.parseRecord(tableName, record);
-        DownstreamTableMetaData tableMetaData = getMetaData(tableName, parsedRecord);
-        // hardcode for now.
-        opType = "I";
-        timestamp  = Long.toString(System.currentTimeMillis());
-        position = Long.toString(offset);
-        txId = String.format("%d-%s", partition, position);
 
         DownstreamOperation dbOperation =
-                new DownstreamOperation(opType, timestamp, position, userTokens, txId, tableMetaData);
-        setColumnData(dbOperation, parsedRecord, tableMetaData);
+                new DownstreamOperation(opType, timestamp, position,
+                        userTokens, txId, changeSequence, tableMetaData);
+        setColumnData(dbOperation, parsedRecord.getData(), tableMetaData);
 
         /*
          * We've got the operation parsed and ready to process.

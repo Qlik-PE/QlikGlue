@@ -179,7 +179,7 @@ public class QlikGlueKafkaConsumer implements Closeable, OffsetCommitCallback, C
                 break;
         }
 
-        LOG.info(logJson(new RecordsConsumed(records.count(), summaries)));
+        LOG.debug(logJson(new RecordsConsumed(records.count(), summaries)));
         return offsets;
     }
 
@@ -197,17 +197,17 @@ public class QlikGlueKafkaConsumer implements Closeable, OffsetCommitCallback, C
             success = false;
             error = exception.getMessage();
         }
-        LOG.info(logJson(new OffsetsCommitted(committedOffsets, error, success)));
+        LOG.debug(logJson(new OffsetsCommitted(committedOffsets, error, success)));
     }
 
     @Override
     public void onPartitionsAssigned(Collection<TopicPartition> partitions) {
-        LOG.info(logJson(new PartitionsAssigned(partitions)));
+        LOG.debug(logJson(new PartitionsAssigned(partitions)));
     }
 
     @Override
     public void onPartitionsRevoked(Collection<TopicPartition> partitions) {
-        LOG.info(logJson(new PartitionsRevoked(partitions)));
+        LOG.debug(logJson(new PartitionsRevoked(partitions)));
     }
 
     private String logJson(Object data) {

@@ -5,6 +5,7 @@ MAVEN = mvn
 install: all
 	mkdir -p $(output_dir)/lib 
 	cp $(CURDIR)/*/target/qlikglue*.jar $(output_dir)/lib
+	cp $(CURDIR)/*/target/qlik-api*.jar $(output_dir)/lib
 	cp $(CURDIR)/*/*/target/qlikglue*.jar $(output_dir)/lib
 	#cp -u $(CURDIR)/dependencies/*.jar $(output_dir)/lib/dependencies
 	#cp -u $(CURDIR)/*/*/target/dependencies/*.jar $(output_dir)/lib/dependencies
@@ -17,10 +18,11 @@ all: qlikglue.jar
 .PHONY: check-env
 
 qlikglue.jar:  .PHONY
-	$(MAVEN) package -Dqlikglue.VERSION=$(GGBD_VERSION) -Dqlikglue.HOME=$(GGBD_HOME)
+	$(MAVEN) package 
 
 docs: .PHONY
-	$(MAVEN) javadoc:aggregate -Dqlikglue.VERSION=$(GGBD_VERSION) -Dqlikglue.HOME=$(GGBD_HOME)
+	$(MAVEN) install
+	$(MAVEN) javadoc:aggregate 
 
 
 clean: .PHONY

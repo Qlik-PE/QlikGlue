@@ -13,10 +13,12 @@
  */
 package qlikglue.publisher.qlik;
 
+import qlikapi.DocApi;
+import qlikapi.GlobalApi;
+import qlikapi.JsonResponse;
 import qlikapi.QlikSocket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qlikglue.common.PropertyManagement;
 
 import org.apache.commons.io.output.ByteArrayOutputStream;
 
@@ -25,14 +27,18 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 
+import static java.lang.Integer.min;
+
 /**
  * Singleton instance that consolidates buffers built by instances of QlikTable.
  */
 public class QlikLoad {
     private static QlikLoad instance = null;
     private QlikSocket qlikSocket;
+    private DocApi docApi;
+    private GlobalApi globalApi;
     private static final Logger LOG = LoggerFactory.getLogger(QlikLoad.class);
-    private static final boolean testOnly = true;
+    private static final boolean testOnly = false;
     private int totalOps = 0;
     private String threadName;
     private ByteArrayOutputStream baos;
@@ -40,16 +46,19 @@ public class QlikLoad {
     // properties
     String URI;
     int maxBufferSize;
+    String appName = "myApp";
 
     private QlikLoad(String threadName) {
         this.threadName = threadName;
         baos = new ByteArrayOutputStream(65536);
         qlikSocket = new QlikSocket();
+        globalApi = new GlobalApi();
+        docApi = new DocApi();
     }
 
     /**
      * Return the singleton instance of this class
-     * @return
+     * @return the singleton value
      */
     public static QlikLoad getInstance() {
         if (instance == null) {
@@ -64,21 +73,13 @@ public class QlikLoad {
     }
 
     /**
-     * Call this method to terminate the thread and exit.
-     */
-    public void cleanup() {
-        sendBuffer();
-        shutdown();
-    }
-
-    /**
      * Send the contents of baos to the web socket
      */
     public void sendBuffer() {
         synchronized (baos) {
             if (baos.size() > 0) {
                 if (!testOnly) {
-                    sendLoadScript(baos.toString());
+                    sendLoadScript(baos.toString(), true);
                 } else {
                     logToFile();
                 }
@@ -90,7 +91,7 @@ public class QlikLoad {
     /**
      * Append the the load script from a table to the output buffer.
      *
-     * @param qlikTableBaos
+     * @param qlikTableBaos a ByteArrayOutputStream
      */
     public void appendBuffer(ByteArrayOutputStream qlikTableBaos) {
         synchronized (baos) {
@@ -107,26 +108,17 @@ public class QlikLoad {
         }
     }
 
-    private void shutdown() {
-        LOG.info("shutting down QlikLoad");
-
-        // pause briefly to allow things to drain
-        try {
-            Thread.sleep(500);
-        } catch (InterruptedException e) {
-            LOG.trace("shutdown() timer");
-        }
-
-        qlikSocket.shutdown();
-
-        if ((baos.size() != 0)) {
-            LOG.warn("shutdown(): Thread {} baos HAS NOT been drained. Size: {}",
-                    threadName, baos.size());
+    /**
+     * Truncate / clear data in the app so we can do a reload.
+     */
+    public void truncateApp() {
+        LOG.info("truncating Qlik app");
+        String script = "ADD ONLY LOAD * INLINE [ ];";
+        if (!testOnly) {
+            sendLoadScript(script, false);
         } else {
-            LOG.info("shutdown(): Thread {} baos has been drained. Size: {}",
-                    threadName, baos.size());
+           System.out.println("truncating app: " + script);
         }
-
     }
 
     /**
@@ -134,8 +126,48 @@ public class QlikLoad {
      *
      * @param script
      */
-    private void sendLoadScript(String script) {
-        System.out.println("Need to set sendLoadScript!!!");
+    private void sendLoadScript(String script, boolean partial) {
+        String request;
+        String response;
+
+        synchronized(this) {
+            request = globalApi.openDoc(appName);
+            System.out.println("OpenDoc request: " + request);
+            response = qlikSocket.sendMessage(request);
+            System.out.println("OpenDoc response: " + response);
+            JsonResponse jsonResponse = new JsonResponse(response);
+            int qHandle;
+            if (jsonResponse.isError()) {
+                System.out.println(jsonResponse.getError());
+            } else {
+                qHandle = jsonResponse.getqHandle();
+                request = docApi.setScript(qHandle, script);
+                System.out.println(String.format("SetScript request: Length(%d) %s",
+                        request.length(), request.substring(1, min(request.length(), 256))));
+                response = qlikSocket.sendMessage(request);
+                System.out.println("SetScript response: " + response);
+                if (jsonResponse.isError()) {
+                    System.out.println(jsonResponse.getError());
+                } else {
+                    request = docApi.doReload(qHandle, 0, partial, false);
+                    System.out.println("DoReload request: " + request);
+                    response = qlikSocket.sendMessage(request);
+                    System.out.println("DoReload response: " + response);
+                    request = docApi.doSave(qHandle);
+                    System.out.println("DoSave request: " + request);
+                    response = qlikSocket.sendMessage(request);
+                    System.out.println("DoSave response: " + response);
+                }
+
+            }
+        }
+    }
+
+    /**
+     * Reset the output buffer to prepare for the next batch.
+     */
+    private void resetBuffer() {
+        baos.reset();
     }
 
 
@@ -155,10 +187,36 @@ public class QlikLoad {
     }
 
     /**
-     * Reset the output buffer to prepare for the next batch.
+     * Call this method to flush buffers, terminate the thread, and exit.
      */
-    private void resetBuffer() {
-        baos.reset();
+    public void cleanup() {
+        sendBuffer();
+        shutdown();
+    }
+
+    /**
+     * give buffers time to flush, then close connection.
+     */
+    private void shutdown() {
+        LOG.info("shutting down QlikLoad");
+
+        // pause briefly to allow things to drain
+        try {
+            Thread.sleep(500);
+        } catch (InterruptedException e) {
+            LOG.trace("shutdown() timer");
+        }
+
+        if ((baos.size() != 0)) {
+            LOG.warn("shutdown(): Thread {} baos HAS NOT been drained. Size: {}",
+                    threadName, baos.size());
+        } else {
+            LOG.info("shutdown(): Thread {} baos has been drained. Size: {}",
+                    threadName, baos.size());
+        }
+
+
+        qlikSocket.shutdown();
     }
 
 

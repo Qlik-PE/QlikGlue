@@ -24,7 +24,7 @@ public class RequestId {
      * Return the next request ID.
      * @return requestId
      */
-    public static int next() {
+    public static synchronized int next() {
         return ++instance.requestId;
     }
 

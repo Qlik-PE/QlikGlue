@@ -46,20 +46,23 @@ public class DownstreamOperation {
                                                      QlikGluePropertyValues.IGNORE_UNCHANGED_DEFAULT);
     
     private static MetadataHelper metadataHelper = MetadataHelper.getMetadataHelper();
-    
+
     public static final String INSERT_VALUE = "INSERT";
     public static final String UPDATE_VALUE = "UPDATE";
     public static final String DELETE_VALUE = "DELETE";
+    public static final String REFRESH_VALUE = "REFRESH";
     
     public static final int INSERT_ID = 1;
     public static final int UPDATE_ID = 2;
     public static final int DELETE_ID = 3;
+    public static final int REFRESH_ID = 3;
     public static final int INVALID_ID = -1;
     
     private String opType;
     private int opTypeId;
     private String timestamp;
     private String position;
+    private String changeSequence;
     private String userTokens;
     private String txId;
     private DownstreamTableMetaData table;
@@ -77,7 +80,7 @@ public class DownstreamOperation {
      * @param tableMeta metadata for the table to which this operation applies
      */
     public DownstreamOperation(String opType, String timestamp, String position,
-                               String userTokens, String txId, 
+                               String userTokens, String txId, String changeSequence,
                                DownstreamTableMetaData tableMeta) {
         super();
         
@@ -93,6 +96,7 @@ public class DownstreamOperation {
         this.position = position;
         this.txId = txId;
         this.table = tableMeta;
+        this.changeSequence = changeSequence;
     }
 
 
@@ -102,7 +106,7 @@ public class DownstreamOperation {
      * when interacting directly with a target. It is also passed along as metadata
      * for downstream use or audit/historical logging.
      * 
-     * @return the SQL operation type (INSERT, UPDATE, DELETE)
+     * @return the operation type (INSERT, UPDATE, DELETE, or REFRESH)
      */
     public String getOpType() {
         return opType;
@@ -118,18 +122,21 @@ public class DownstreamOperation {
         int val;
 
         switch (firstChar) {
-        case 'I':
-            val = INSERT_ID;
-            break;
-        case 'U':
-            val = UPDATE_ID;
-            break;
-        case 'D':
-            val = DELETE_ID;
-            break;
-        default:
-            val = INVALID_ID;
-            LOG.error("Unrecognized OpType: {}", opType);
+            case 'I':
+                val = INSERT_ID;
+                break;
+            case 'U':
+                val = UPDATE_ID;
+                break;
+            case 'D':
+                val = DELETE_ID;
+                break;
+            case 'R':
+                val = REFRESH_ID;
+                break;
+            default:
+                val = INVALID_ID;
+                LOG.error("Unrecognized OpType: {}", opType);
         }
 
         opTypeId = val;
@@ -176,6 +183,14 @@ public class DownstreamOperation {
     public String getPosition() {
         return position;
     }
+
+    /**
+     * Get the change sequence number for this operation.
+     * It is only passed along as received and not used by QlikGlue.
+     *
+     * @return the change sequence number
+     */
+    public String getChangeSequence() { return changeSequence; }
 
     /**
      * Add information pertaining to a column to this operation.

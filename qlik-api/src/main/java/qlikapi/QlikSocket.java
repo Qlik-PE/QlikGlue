@@ -52,10 +52,12 @@ public class QlikSocket  {
     private static final boolean testOnly = false;
     private long idleTimeout;
     private Session userSession = null;
-    private String messageResult;
+    private String messageResult = "no message";
+    private String previousMessage = "";
     private String appName;
     private ByteArrayOutputStream baos;
     private CountDownLatch countDownLatch;
+    private boolean pendingResponse = false;
     URI endpointURI;
 
     // properties
@@ -98,8 +100,13 @@ public class QlikSocket  {
     }
 
     /**
-     * Send a json-formatted message to Qlik
-     * @param jsonMessage
+     * Send a json-formatted message to Qlik. Note that this method uses a
+     * countdown latch to cause synchronous execution. The latch shouldn't be
+     * cleared until the returned message is set in onMessage().
+     *
+     * @param jsonMessage the json-formatted record we want to send
+     *
+     * @return the json message returned from the call.
      */
     public String sendMessage(String jsonMessage) {
         if (userSession == null) {
@@ -109,6 +116,7 @@ public class QlikSocket  {
             countDownLatch = new CountDownLatch(1);
             // TODO: should we use getAsyncRemote() ???
             this.userSession.getBasicRemote().sendText(jsonMessage);
+            pendingResponse = true;
             countDownLatch.await(5L, TimeUnit.SECONDS);
         }catch (InterruptedException e) {
            LOG.warn("CountDownLatch timer expired", e);
@@ -183,16 +191,35 @@ public class QlikSocket  {
     }
 
     /**
-     * Callback hook for Message Events. This method will be invoked when a
-     * client sends a message.
+     * Callback hook for Message Events. This method will be invoked when
+     * Qlik sends a response message.
      *
      * @param message
      *            The text message
      */
     @OnMessage
     public void onMessage(String message) {
-        messageResult = message;
-        countDownLatch.countDown();
+        if (pendingResponse) {
+            /*
+             Qlik seems to periodically send a duplicate response, and
+             I seem to have gotten some null messages as well.
+             Deal with them here.
+            */
+            if (message == null) {
+                LOG.warn("NULL message received: " + message);
+            } else {
+                if (!previousMessage.equals(message)) {
+                    previousMessage = messageResult;
+                    messageResult = message;
+                    countDownLatch.countDown();
+                    pendingResponse = false;
+                } else {
+                    LOG.warn("Duplicate message received: " + message);
+                }
+            }
+        } else {
+            LOG.warn("onMessage() while response not pending: " + message);
+        }
     }
 
     /**
@@ -212,7 +239,9 @@ public class QlikSocket  {
     /**
      * Quick test of APIs.
      *
-     * @param args
+     * @param args the arguments passed in on the command line.
+     * @throws Exception rutime exceptions we receive.
+     *
      */
     public static void main(String[] args) throws Exception  {
         //This is the root logger provided by log4j

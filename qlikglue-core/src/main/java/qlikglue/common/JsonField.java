@@ -36,6 +36,7 @@ public class JsonField {
      *
      * @param name the field / column name
      * @param value the field value
+     * @param jdbcType the java.sql.Types value
      */
     public JsonField(String name, String value, int jdbcType) {
         this.name = name;
