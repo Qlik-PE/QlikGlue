@@ -13,13 +13,14 @@
  */
 package qlikglue.source.kafka;
 
-import qlikglue.QlikGluePropertyValues;
+import qlikglue.QlikGlueProperties;
 import qlikglue.QlikGlueVersion;
 import qlikglue.common.JsonField;
 import qlikglue.common.JsonHelper;
 import qlikglue.common.JsonRecord;
 import qlikglue.common.PropertyManagement;
 import qlikglue.encoder.EncoderFactory;
+import qlikglue.encoder.EncoderProperties;
 import qlikglue.encoder.EncoderType;
 import qlikglue.encoder.ParallelEncoder;
 import qlikglue.encoder.avro.AvroSchemaFactory;
@@ -68,8 +69,8 @@ public class KafkaJsonHandler {
 
         // load all the properties for the app
         properties =
-                PropertyManagement.getProperties(QlikGluePropertyValues.defaultProperties,
-                        QlikGluePropertyValues.externalProperties);
+                PropertyManagement.getProperties(QlikGlueProperties.defaultProperties,
+                        QlikGlueProperties.externalProperties);
 
 
 
@@ -81,11 +82,11 @@ public class KafkaJsonHandler {
         downstreamSchemaMetaData = new DownstreamSchemaMetaData();
 
         includeBefores =
-                PropertyManagement.getProperties().asBoolean(QlikGluePropertyValues.INCLUDE_BEFORES,
-                        QlikGluePropertyValues.INCLUDE_BEFORES_DEFAULT);
+                PropertyManagement.getProperties().asBoolean(EncoderProperties.INCLUDE_BEFORES,
+                        EncoderProperties.INCLUDE_BEFORES_DEFAULT);
         ignoreUnchangedRows =
-                PropertyManagement.getProperties().asBoolean(QlikGluePropertyValues.IGNORE_UNCHANGED,
-                        QlikGluePropertyValues.IGNORE_UNCHANGED_DEFAULT);
+                PropertyManagement.getProperties().asBoolean(EncoderProperties.IGNORE_UNCHANGED,
+                        EncoderProperties.IGNORE_UNCHANGED_DEFAULT);
 
         /*
          * all properties should be initialized by now. Print them out.

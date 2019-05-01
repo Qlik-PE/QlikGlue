@@ -14,7 +14,6 @@
 package qlikglue.encoder;
 
 
-import qlikglue.QlikGluePropertyValues;
 import qlikglue.common.PropertyManagement;
 import qlikglue.meta.transaction.DownstreamOperation;
 import qlikglue.publisher.ParallelPublisher;
@@ -49,8 +48,8 @@ public class ParallelEncoder extends Thread {
 
         // create an instance of the class that will serialize
         // the DB operations
-        this.numEncoders = PropertyManagement.getProperties().asInt(QlikGluePropertyValues.ENCODER_THREADS,
-                               QlikGluePropertyValues.ENCODER_THREADS_DEFAULT);
+        this.numEncoders = PropertyManagement.getProperties().asInt(EncoderProperties.ENCODER_THREADS,
+                               EncoderProperties.ENCODER_THREADS_DEFAULT);
 
         init();
     }

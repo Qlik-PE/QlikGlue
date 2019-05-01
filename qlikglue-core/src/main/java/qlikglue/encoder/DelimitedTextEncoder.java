@@ -13,16 +13,11 @@
  */
 package qlikglue.encoder;
 
-import qlikglue.QlikGluePropertyValues;
 import qlikglue.common.PropertyManagement;
 import qlikglue.meta.transaction.DownstreamColumnData;
 import qlikglue.meta.transaction.DownstreamOperation;
 
 import java.io.IOException;
-
-import java.util.Map;
-
-import org.apache.avro.util.Utf8;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,8 +45,8 @@ public class DelimitedTextEncoder implements QlikGlueEncoder {
         eventHeader = new EventHeader();
 
         PropertyManagement properties = PropertyManagement.getProperties();
-        delimiter = (char)properties.asInt(QlikGluePropertyValues.ENCODER_DELIMITER,
-                                    QlikGluePropertyValues.ENCODER_DELIMITER_DEFAULT);
+        delimiter = (char)properties.asInt(EncoderProperties.ENCODER_DELIMITER,
+                                    EncoderProperties.ENCODER_DELIMITER_DEFAULT);
     }
 
     /**

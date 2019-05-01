@@ -15,10 +15,7 @@ package qlikglue.utility.schemadef;
 
 import qlikglue.common.PropertyManagement;
 
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
 
 import org.apache.commons.io.output.ByteArrayOutputStream;
 
@@ -82,7 +79,15 @@ public abstract class Format {
      * @return the ByteArrayOutputStream as a String
      */
     public String getBuffer() {
-        return baos.toString();
+        String s;
+
+        try {
+            s = baos.toString("UTF-8");
+        } catch (UnsupportedEncodingException e) {
+            LOG.error("encoding error", e);
+            s = "Baos encoding error";
+        }
+        return s;
     }
     
     /**

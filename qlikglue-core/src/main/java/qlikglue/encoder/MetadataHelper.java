@@ -13,17 +13,13 @@
  */
 package qlikglue.encoder;
 
-import qlikglue.QlikGluePropertyValues;
 import qlikglue.common.PropertyManagement;
 
 import qlikglue.meta.transaction.DownstreamOperation;
 
 import java.util.HashMap;
-
-
 import java.util.LinkedHashSet;
 import java.util.Map;
-
 import java.util.Set;
 
 import org.slf4j.Logger;
@@ -66,18 +62,18 @@ public class MetadataHelper {
 
         properties = PropertyManagement.getProperties();
         
-        tablename = properties.asBoolean(QlikGluePropertyValues.TABLENAME, "false");
-        tablenameCol = properties.getProperty(QlikGluePropertyValues.TABLENAME_COLUMN, "tablename");
-        txId = properties.asBoolean(QlikGluePropertyValues.TXID, "false");
-        txIdCol = properties.getProperty(QlikGluePropertyValues.TXID_COLUMN, "txid");
-        txOpType = properties.asBoolean(QlikGluePropertyValues.TX_OPTYPE, "false");
-        txOptypeCol = properties.getProperty(QlikGluePropertyValues.TX_OPTYPE_COLUMN, "txoptype");
-        txTimestamp = properties.asBoolean(QlikGluePropertyValues.TX_TIMESTAMP, "false");
-        txTimestampCol = properties.getProperty(QlikGluePropertyValues.TX_TIMESTAMP_COLUMN, "txtimestamp");
-        txPosition = properties.asBoolean(QlikGluePropertyValues.TX_POSITION, "false");
-        txPositionCol = properties.getProperty(QlikGluePropertyValues.TX_POSITION_COLUMN, "txposition");
-        userToken = properties.asBoolean(QlikGluePropertyValues.USERTOKEN, "false");
-        userTokenCol = properties.getProperty(QlikGluePropertyValues.USERTOKEN_COLUMN, "usertokens");
+        tablename = properties.asBoolean(EncoderProperties.TABLENAME, "false");
+        tablenameCol = properties.getProperty(EncoderProperties.TABLENAME_COLUMN, "tablename");
+        txId = properties.asBoolean(EncoderProperties.TXID, "false");
+        txIdCol = properties.getProperty(EncoderProperties.TXID_COLUMN, "txid");
+        txOpType = properties.asBoolean(EncoderProperties.TX_OPTYPE, "false");
+        txOptypeCol = properties.getProperty(EncoderProperties.TX_OPTYPE_COLUMN, "txoptype");
+        txTimestamp = properties.asBoolean(EncoderProperties.TX_TIMESTAMP, "false");
+        txTimestampCol = properties.getProperty(EncoderProperties.TX_TIMESTAMP_COLUMN, "txtimestamp");
+        txPosition = properties.asBoolean(EncoderProperties.TX_POSITION, "false");
+        txPositionCol = properties.getProperty(EncoderProperties.TX_POSITION_COLUMN, "txposition");
+        userToken = properties.asBoolean(EncoderProperties.USERTOKEN, "false");
+        userTokenCol = properties.getProperty(EncoderProperties.USERTOKEN_COLUMN, "usertokens");
         
         metadataCols = setMetadataCols();
     }

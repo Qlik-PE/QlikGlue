@@ -20,8 +20,6 @@ import org.apache.log4j.Level;
 import org.apache.log4j.PatternLayout;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qlikglue.QlikGluePropertyValues;
-import qlikglue.common.PropertyManagement;
 
 import org.apache.commons.io.output.ByteArrayOutputStream;
 
@@ -50,30 +48,26 @@ import javax.websocket.WebSocketContainer;
 public class QlikSocket  {
     private static final Logger LOG = LoggerFactory.getLogger(QlikSocket.class);
     private static final boolean testOnly = false;
-    private long idleTimeout;
     private Session userSession = null;
     private String messageResult = "no message";
     private String previousMessage = "";
-    private String appName;
     private ByteArrayOutputStream baos;
     private CountDownLatch countDownLatch;
     private boolean pendingResponse = false;
-    URI endpointURI;
+    private String URI;
 
-    // properties
-    String URI;
-    int maxBufferSize;
+    /**
+     * Create an instance using the default property values.
+     */
+    public QlikSocket(String URI) {
+        this.URI = URI;
+        init();
+    }
 
-    public QlikSocket() {
-        PropertyManagement properties = PropertyManagement.getProperties();
-        URI = properties.getProperty(QlikSocketProperties.QLIKSOCKET_URL,
-                QlikSocketProperties.QLIKSOCKET_URL_DEFAULT);
-        appName = properties.getProperty(QlikSocketProperties.QLIKSOCKET_APPNAME,
-                QlikSocketProperties.QLIKSOCKET_APPNAME_DEFAULT);
-        maxBufferSize = properties.asInt(QlikSocketProperties.QLIKSOCKET_MAXBUFFERSIZE,
-                QlikSocketProperties.QLIKSOCKET_MAXBUFFERSIZE_DEFAULT);
-        idleTimeout = properties.asLong(QlikSocketProperties.QLIKSOCKET_MAXIDLETIMEOUT,
-                QlikSocketProperties.QLIKSOCKET_MAXIDLETIMEOUT_DEFAULT);
+    /**
+     * Initialization common to all constructors.
+     */
+    private void init() {
         baos = new ByteArrayOutputStream(65536);
         // reinitialize things
         resetBuffer();
@@ -141,6 +135,7 @@ public class QlikSocket  {
      * initialize websocket stuff
      */
     private void connectToServer() {
+        URI endpointURI;
         if (!testOnly) {
             try {
                 endpointURI = new URI(URI);
@@ -200,11 +195,6 @@ public class QlikSocket  {
     @OnMessage
     public void onMessage(String message) {
         if (pendingResponse) {
-            /*
-             Qlik seems to periodically send a duplicate response, and
-             I seem to have gotten some null messages as well.
-             Deal with them here.
-            */
             if (message == null) {
                 LOG.warn("NULL message received: " + message);
             } else {
@@ -260,10 +250,8 @@ public class QlikSocket  {
             rootLogger.addAppender(new ConsoleAppender(layout));
             rootLogger.error("failed to open log4j log file. Switching to ConsoleAppender.", e);
         }
-        PropertyManagement.getProperties(QlikGluePropertyValues.defaultProperties,
-                        QlikGluePropertyValues.externalProperties);
 
-        QlikSocket qlikSocket = new QlikSocket();
+        QlikSocket qlikSocket = new QlikSocket("ws://10.0.2.2:4848/app/");
         GlobalApi globalApi = new GlobalApi();
         DocApi docApi = new DocApi();
         String script = new String(Files.readAllBytes(Paths.get("/tmp/QlikSocket_1")));

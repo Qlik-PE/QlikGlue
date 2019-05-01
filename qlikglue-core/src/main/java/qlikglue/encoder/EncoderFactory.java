@@ -13,9 +13,6 @@
  */
 package qlikglue.encoder;
 
-import com.google.common.base.Throwables;
-
-import qlikglue.QlikGluePropertyValues;
 import qlikglue.common.PropertyManagement;
 
 import org.slf4j.Logger;
@@ -30,8 +27,6 @@ public class EncoderFactory {
     
     private static EncoderType encoderType;
 
-    private static EncoderFactory myFactory = null;
-    
 
     public EncoderFactory() {
         super();
@@ -51,14 +46,14 @@ public class EncoderFactory {
         String className = null;
         Class<QlikGlueEncoder> clazz = null;
         properties = PropertyManagement.getProperties();
-        className = properties.getProperty(QlikGluePropertyValues.ENCODER_CLASS);
+        className = properties.getProperty(EncoderProperties.ENCODER_CLASS);
         try {
             clazz = (Class<QlikGlueEncoder>) Class.forName(className);
             encoder = clazz.newInstance();
 
         } catch (Exception e) {
             LOG.error("Could not instantiate encoder.", e);
-            Throwables.propagate(e);
+            throw new RuntimeException(e);
         }
         
         encoderType = encoder.getEncoderType();

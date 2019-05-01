@@ -13,9 +13,8 @@
  */
 package qlikglue.encoder.avro;
 
-
-import qlikglue.QlikGluePropertyValues;
 import qlikglue.common.PropertyManagement;
+import qlikglue.encoder.EventProperties;
 import qlikglue.meta.schema.DownstreamSchemaMetaData;
 import qlikglue.meta.schema.DownstreamTableMetaData;
 
@@ -101,7 +100,7 @@ public class AvroSchemaFactory {
         String keyName;
         AvroSchema schema;
         boolean generateSchema =
-            PropertyManagement.getProperties().asBoolean(QlikGluePropertyValues.GENERATE_AVRO_SCHEMA, "false");
+            PropertyManagement.getProperties().asBoolean(EventProperties.GENERATE_AVRO_SCHEMA, "false");
         tableName = meta.getBDTableName();
         keyName = meta.getKeyName();
         LOG.debug("metaDataChanged() event for table: {}", tableName);

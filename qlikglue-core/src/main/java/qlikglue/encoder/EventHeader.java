@@ -13,7 +13,6 @@
  */
 package qlikglue.encoder;
 
-import qlikglue.QlikGluePropertyValues;
 import qlikglue.common.PropertyManagement;
 import qlikglue.encoder.avro.AvroSchema;
 import qlikglue.encoder.avro.AvroSchemaFactory;
@@ -23,6 +22,7 @@ import java.util.HashMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qlikglue.publisher.PublisherProperties;
 
 /**
  * A class for manageing the event header / meta information. Note that this class does
@@ -60,19 +60,19 @@ public class EventHeader {
         String tstrg;
         eventHeader = new HashMap<>();
         properties = PropertyManagement.getProperties();
-        hdrOpType = properties.asBoolean(QlikGluePropertyValues.HEADER_OPTYPE, "true");
-        hdrTimestamp = properties.asBoolean(QlikGluePropertyValues.HEADER_TIMESTAMP, "true");
-        hdrRowKey = properties.asBoolean(QlikGluePropertyValues.HEADER_ROWKEY, "true");
-        columnFamily = properties.asBoolean(QlikGluePropertyValues.HEADER_COLUMNFAMIILY, "false");
-        tstrg = properties.getProperty(QlikGluePropertyValues.PUBLISHER_HASH);
+        hdrOpType = properties.asBoolean(EventProperties.HEADER_OPTYPE, "true");
+        hdrTimestamp = properties.asBoolean(EventProperties.HEADER_TIMESTAMP, "true");
+        hdrRowKey = properties.asBoolean(EventProperties.HEADER_ROWKEY, "true");
+        columnFamily = properties.asBoolean(EventProperties.HEADER_COLUMNFAMIILY, "false");
+        tstrg = properties.getProperty(PublisherProperties.PUBLISHER_HASH);
         if ((tstrg != null) && tstrg.equalsIgnoreCase("rowkey")) {
             // force row key inclusion if we are hashing on it in the publisher
             hdrRowKey = true;
         }
-        tableLongName = properties.asBoolean(QlikGluePropertyValues.HEADER_LONGNAME, "true");
-        avroSchemaPath = properties.asBoolean(QlikGluePropertyValues.HEADER_AVROPATH, "true");
+        tableLongName = properties.asBoolean(EventProperties.HEADER_LONGNAME, "true");
+        avroSchemaPath = properties.asBoolean(EventProperties.HEADER_AVROPATH, "true");
         
-        avroURLPath = properties.getProperty(QlikGluePropertyValues.AVRO_SCHEMA_URL);
+        avroURLPath = properties.getProperty(EventProperties.AVRO_SCHEMA_URL);
         
     }
 

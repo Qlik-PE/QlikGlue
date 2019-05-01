@@ -13,19 +13,14 @@
  */
 package qlikglue.publisher.qlik;
 
-import qlikapi.DocApi;
-import qlikapi.GlobalApi;
-import qlikapi.JsonResponse;
-import qlikapi.QlikSocket;
+import qlikapi.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.commons.io.output.ByteArrayOutputStream;
+import qlikglue.common.PropertyManagement;
 
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
+import java.io.*;
 
 import static java.lang.Integer.min;
 
@@ -44,14 +39,25 @@ public class QlikLoad {
     private ByteArrayOutputStream baos;
 
     // properties
-    String URI;
-    int maxBufferSize;
-    String appName = "myApp";
+    private int maxBufferSize;
+    private String appName;
+    private String URI;
 
     private QlikLoad(String threadName) {
+        PropertyManagement properties = PropertyManagement.getProperties();
         this.threadName = threadName;
         baos = new ByteArrayOutputStream(65536);
-        qlikSocket = new QlikSocket();
+
+
+
+        maxBufferSize = properties.asInt(QlikLoadProperties.QLIKLOAD_MAXBUFFERSIZE,
+                QlikLoadProperties.QLIKLOAD_MAXBUFFERSIZE_DEFAULT);
+        URI = properties.getProperty(QlikLoadProperties.QLIKLOAD_URL,
+                QlikLoadProperties.QLIKLOAD_URL_DEFAULT);
+        appName = properties.getProperty(QlikLoadProperties.QLIKLOAD_APPNAME,
+                QlikLoadProperties.QLIKLOAD_APPNAME_DEFAULT);
+
+        qlikSocket = new QlikSocket(URI);
         globalApi = new GlobalApi();
         docApi = new DocApi();
     }
@@ -79,7 +85,14 @@ public class QlikLoad {
         synchronized (baos) {
             if (baos.size() > 0) {
                 if (!testOnly) {
-                    sendLoadScript(baos.toString(), true);
+                    String s;
+                    try {
+                        s = baos.toString("UTF-8");
+                    } catch (UnsupportedEncodingException e) {
+                        LOG.error("Baos encoding exception", e);
+                        s = "BAOS encoding exception";
+                    }
+                    sendLoadScript(s, true);
                 } else {
                     logToFile();
                 }

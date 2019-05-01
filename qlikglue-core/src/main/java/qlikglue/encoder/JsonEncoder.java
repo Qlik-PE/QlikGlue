@@ -13,7 +13,6 @@
  */
 package qlikglue.encoder;
 
-import qlikglue.QlikGluePropertyValues;
 import qlikglue.common.PropertyManagement;
 import qlikglue.meta.transaction.DownstreamColumnData;
 import qlikglue.meta.transaction.DownstreamOperation;
@@ -37,8 +36,8 @@ import org.slf4j.LoggerFactory;
 public class JsonEncoder implements QlikGlueEncoder {
     private static final Logger LOG = LoggerFactory.getLogger(JsonEncoder.class);
     private static boolean includeBefores = 
-        PropertyManagement.getProperties().asBoolean(QlikGluePropertyValues.INCLUDE_BEFORES, 
-                                                     QlikGluePropertyValues.INCLUDE_BEFORES_DEFAULT);
+        PropertyManagement.getProperties().asBoolean(EncoderProperties.INCLUDE_BEFORES,
+                                                     EncoderProperties.INCLUDE_BEFORES_DEFAULT);
     
     private boolean textOnly;
     private EncoderType encoderType;
@@ -51,8 +50,8 @@ public class JsonEncoder implements QlikGlueEncoder {
         super();
         LOG.info("JsonEncoder()");
         init();
-        textOnly = PropertyManagement.getProperties().asBoolean(QlikGluePropertyValues.JSON_TEXT, 
-                                                                QlikGluePropertyValues.JSON_TEXT_DEFAULT);
+        textOnly = PropertyManagement.getProperties().asBoolean(EncoderProperties.JSON_TEXT,
+                                                                EncoderProperties.JSON_TEXT_DEFAULT);
     }
 
     /**

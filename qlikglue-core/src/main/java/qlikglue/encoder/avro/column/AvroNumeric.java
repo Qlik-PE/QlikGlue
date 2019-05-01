@@ -13,8 +13,8 @@
  */
 package qlikglue.encoder.avro.column;
 
-import qlikglue.QlikGluePropertyValues;
 import qlikglue.common.PropertyManagement;
+import qlikglue.encoder.EncoderProperties;
 import qlikglue.meta.schema.DownstreamColumnMetaData;
 import qlikglue.meta.transaction.DownstreamColumnData;
 
@@ -51,8 +51,8 @@ public class AvroNumeric extends AvroColumn {
         super.columnType = AvroColumnType.NUMERIC;
 
         type =
-            properties.getProperty(QlikGluePropertyValues.NUMERIC_ENCODING,
-                                   QlikGluePropertyValues.NUMERIC_ENCODING_DEFAULT).trim();
+            properties.getProperty(EncoderProperties.NUMERIC_ENCODING,
+                                   EncoderProperties.NUMERIC_ENCODING_DEFAULT).trim();
         if (type.equalsIgnoreCase("string")) {
             super.avroSchemaType = Schema.Type.STRING;
         } else if (type.equalsIgnoreCase("double")) {

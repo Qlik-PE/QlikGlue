@@ -13,9 +13,6 @@
  */
 package qlikglue.publisher;
 
-import com.google.common.base.Throwables;
-
-import qlikglue.QlikGluePropertyValues;
 import qlikglue.common.PropertyManagement;
 
 import org.slf4j.Logger;
@@ -53,7 +50,7 @@ public class PublisherFactory {
         String className = null;
         Class<QlikGluePublisher> clazz = null;
         properties = PropertyManagement.getProperties();
-        className = properties.getProperty(QlikGluePropertyValues.PUBLISHER_CLASS);
+        className = properties.getProperty(PublisherProperties.PUBLISHER_CLASS);
         if (className == null) {
             LOG.info("Publisher not set. Defaulting to ConsolePublisher");
             className = "qlikglue.publisher.ConsolePublisher";
@@ -64,7 +61,7 @@ public class PublisherFactory {
 
         } catch (Exception e) {
             LOG.error("Could not instantiate publisher.", e);
-            Throwables.propagate(e);
+            throw new RuntimeException(e);
         }
         
         return rval;

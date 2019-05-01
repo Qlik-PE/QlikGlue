@@ -66,9 +66,11 @@ import static net.sourceforge.argparse4j.impl.Arguments.store;
 import static net.sourceforge.argparse4j.impl.Arguments.storeTrue;
 
 /**
- * Command line consumer designed for system testing. It outputs consumer events to STDOUT as JSON
- * formatted objects. The "name" field in each JSON event identifies the event type. The following
- * events are currently supported:
+ * A basic consumer run from the command line and designed to read from one or more topics.
+ * Data is parsed and routed to QliGlue for processing and delivery downstream.
+ *
+ * The process outputs consumer events to Log4j as JSON-formatted objects. The "name" field
+ * in each JSON event identifies the event type. The following events are currently supported:
  *
  * <ul>
  * <li>partitions_revoked: outputs the partitions revoked through {@link ConsumerRebalanceListener#onPartitionsRevoked(Collection)}.
@@ -77,8 +79,8 @@ import static net.sourceforge.argparse4j.impl.Arguments.storeTrue;
  *     See {@link QlikGlueKafkaConsumer.PartitionsAssigned}.</li>
  * <li>records_consumed: contains a summary of records consumed in a single call to {@link KafkaConsumer#poll(Duration)}.
  *     See {@link QlikGlueKafkaConsumer.RecordsConsumed}.</li>
- * <li>record_data: contains the key, value, and offset of an individual consumed record
- *     See {@link QlikGlueKafkaConsumer.RecordData}.</li>
+ * <li>record_data: contains the key, value, and offset of an individual consumed record. This data is
+ *     only logged if the log4j logging level is set to 'trace'. See {@link QlikGlueKafkaConsumer.RecordData}.</li>
  * <li>offsets_committed: The result of every offset commit (only included if auto-commit is not enabled).
  *     See {@link QlikGlueKafkaConsumer.OffsetsCommitted}</li>
  * <li>shutdown_complete: emitted after the consumer returns from {@link KafkaConsumer#close()}.

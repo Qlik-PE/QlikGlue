@@ -13,8 +13,8 @@
  */
 package qlikglue.meta.transaction;
 
-import qlikglue.QlikGluePropertyValues;
 import qlikglue.common.PropertyManagement;
+import qlikglue.encoder.EncoderProperties;
 import qlikglue.encoder.MetadataHelper;
 import qlikglue.meta.schema.DownstreamTableMetaData;
 
@@ -39,11 +39,11 @@ public class DownstreamOperation {
     private static final Logger LOG = LoggerFactory.getLogger(DownstreamOperation.class);
 
     private static boolean includeBefores = 
-        PropertyManagement.getProperties().asBoolean(QlikGluePropertyValues.INCLUDE_BEFORES, 
-                                                     QlikGluePropertyValues.INCLUDE_BEFORES_DEFAULT);
+        PropertyManagement.getProperties().asBoolean(EncoderProperties.INCLUDE_BEFORES,
+                                                     EncoderProperties.INCLUDE_BEFORES_DEFAULT);
     private static boolean ignoreUnchanged = 
-        PropertyManagement.getProperties().asBoolean(QlikGluePropertyValues.IGNORE_UNCHANGED, 
-                                                     QlikGluePropertyValues.IGNORE_UNCHANGED_DEFAULT);
+        PropertyManagement.getProperties().asBoolean(EncoderProperties.IGNORE_UNCHANGED,
+                                                     EncoderProperties.IGNORE_UNCHANGED_DEFAULT);
     
     private static MetadataHelper metadataHelper = MetadataHelper.getMetadataHelper();
 
@@ -55,7 +55,7 @@ public class DownstreamOperation {
     public static final int INSERT_ID = 1;
     public static final int UPDATE_ID = 2;
     public static final int DELETE_ID = 3;
-    public static final int REFRESH_ID = 3;
+    public static final int REFRESH_ID = 4;
     public static final int INVALID_ID = -1;
     
     private String opType;
@@ -77,6 +77,7 @@ public class DownstreamOperation {
      * @param position the relative position of this operation
      * @param userTokens the user tokens associated with this operation
      * @param txId the transaction identifier
+     * @param changeSequence the changes sequence number for the operation
      * @param tableMeta metadata for the table to which this operation applies
      */
     public DownstreamOperation(String opType, String timestamp, String position,

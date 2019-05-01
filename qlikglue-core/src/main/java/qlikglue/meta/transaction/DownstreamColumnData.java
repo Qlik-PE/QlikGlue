@@ -13,10 +13,10 @@
  */
 package qlikglue.meta.transaction;
 
-
 import org.apache.commons.lang.math.NumberUtils;
-import qlikglue.QlikGluePropertyValues;
+
 import qlikglue.common.PropertyManagement;
+import qlikglue.encoder.EncoderProperties;
 import qlikglue.utility.schemadef.BigDataName;
 
 import java.math.BigDecimal;
@@ -25,8 +25,6 @@ import java.nio.ByteBuffer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static org.apache.commons.lang.math.NumberUtils.isNumber;
 
 /**
  * Class that contains the data captured for a column. We are using this
@@ -40,10 +38,10 @@ public class DownstreamColumnData {
     private static BigDataName bdname = null;
     
     private static boolean replaceNewline = 
-        PropertyManagement.getProperties().asBoolean(QlikGluePropertyValues.REPLACE_NEWLINE, 
-                                                     QlikGluePropertyValues.REPLACE_NEWLINE_DEFAULT);
+        PropertyManagement.getProperties().asBoolean(EncoderProperties.REPLACE_NEWLINE,
+                                                     EncoderProperties.REPLACE_NEWLINE_DEFAULT);
     private static String replaceChar = 
-        PropertyManagement.getProperties().getProperty(QlikGluePropertyValues.NEWLINE_CHAR, " ");
+        PropertyManagement.getProperties().getProperty(EncoderProperties.NEWLINE_CHAR, " ");
 
     
     private String bdColumnName;

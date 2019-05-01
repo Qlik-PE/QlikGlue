@@ -13,9 +13,9 @@
  */
 package qlikapi;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.codehaus.jackson.annotate.JsonProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,7 +28,8 @@ import java.util.Map;
  */
 public class JsonRequest {
     // Json properties need to be public for serialization to work without getters
-    @JsonProperty public String jsonrpc = "2.0";
+    @JsonProperty
+    public String jsonrpc = "2.0";
     @JsonProperty public int id;
     @JsonProperty public int handle;
     @JsonProperty public String method;

@@ -14,8 +14,8 @@
 package qlikglue.encoder.avro;
 
 
-import qlikglue.QlikGluePropertyValues;
 import qlikglue.common.PropertyManagement;
+import qlikglue.encoder.EventProperties;
 import qlikglue.encoder.MetadataHelper;
 import qlikglue.encoder.avro.column.AvroColumn;
 import qlikglue.encoder.avro.column.AvroColumnType;
@@ -50,9 +50,9 @@ public class AvroSchema {
     private static final Logger LOG = LoggerFactory.getLogger(AvroSchema.class);
     private static BigDataName bdname = null;
     private static String namespace =
-        PropertyManagement.getProperties().getProperty(QlikGluePropertyValues.AVRO_NAMESPACE, "default");
+        PropertyManagement.getProperties().getProperty(EventProperties.AVRO_NAMESPACE, "default");
     private static String path =
-        PropertyManagement.getProperties().getProperty(QlikGluePropertyValues.AVRO_LOCAL_PATH, "./avro");
+        PropertyManagement.getProperties().getProperty(EventProperties.AVRO_LOCAL_PATH, "./avro");
 
     private Schema schema; // the Avro schema
     private String tableName;

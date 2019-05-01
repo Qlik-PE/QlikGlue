@@ -13,9 +13,7 @@
  */
 package qlikglue.publisher;
 
-import qlikglue.QlikGluePropertyValues;
 import qlikglue.common.PropertyManagement;
-import qlikglue.encoder.EncoderThread;
 import qlikglue.encoder.EventData;
 import qlikglue.encoder.EventHeader;
 import qlikglue.encoder.EventQueue;
@@ -45,7 +43,7 @@ public class ParallelPublisher extends Thread {
     public ParallelPublisher() {
         super(publisherName);
         properties = PropertyManagement.getProperties();
-        numPublishers = properties.asInt(QlikGluePropertyValues.PUBLISHER_THREADS, QlikGluePropertyValues.PUBLISHER_THREADS_DEFAULT);
+        numPublishers = properties.asInt(PublisherProperties.PUBLISHER_THREADS, PublisherProperties.PUBLISHER_THREADS_DEFAULT);
         init();
     }
 
@@ -80,7 +78,7 @@ public class ParallelPublisher extends Thread {
             publishers.add(publisher);
         }
         
-        String tstrg = properties.getProperty(QlikGluePropertyValues.PUBLISHER_HASH);
+        String tstrg = properties.getProperty(PublisherProperties.PUBLISHER_HASH);
         if ((tstrg != null) && tstrg.equalsIgnoreCase("rowkey")) {
             // force row key inclusion if we are hashing on it in the publisher
             hashRowKey = true;
