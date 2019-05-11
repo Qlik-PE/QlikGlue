@@ -45,6 +45,22 @@ public class EncoderProperties {
     public static final String ENCODER_DELIMITER_DEFAULT = "001";
 
     /**
+     * boolean: populate a "key" column
+     */
+    public static final String KEY_COLUMN = "qlikglue.encoder.key-column";
+    /**
+     * populate a "key" column default
+     */
+    public static final String KEY_COLUMN_DEFAULT = "false";
+    /**
+     * the name of the key column
+     */
+    public static final String KEY_COLUMN_NAME = "qlikglue.encoder.key-column-name";
+    /**
+     * the name of the key column
+     */
+    public static final String KEY_COLUMN_NAME_DEFAULT = "message_key";
+    /**
      * boolean: populate table name column.
      */
     public static final String TABLENAME = "qlikglue.encoder.tablename";

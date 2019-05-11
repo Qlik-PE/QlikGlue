@@ -85,11 +85,11 @@ public abstract class DataAccumulator {
                 timerTask.cancel();
                 timerTask = null;
             }
-            if (bufferSize() >= 0) {
+            //if (bufferSize() >= 0) {
                 LOG.debug("sending buffer");
                 sendBuffer();
-                resetBuffer();
-            }
+             //   resetBuffer();
+           // }
 
             if (!shutdown) {
                 LOG.debug("DataAccumulator: starting timer");

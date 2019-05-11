@@ -9,7 +9,7 @@ a number of different targets.
 ## Building this project
 First, get this repository into your local environment:
 
-        git clone https://github.com/attunity/qlikglue
+        git clone https://github.com/attunitypm/qlikglue
 
 Simply type ``make`` from the command line. Under the covers, ``make``
 will be calling Maven, but everyone understands ``make``.

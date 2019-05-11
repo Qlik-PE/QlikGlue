@@ -13,53 +13,77 @@
  */
 package qlikglue.publisher.qlik;
 
+import org.apache.commons.io.output.ByteArrayOutputStream;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
 
 /**
- * This singleton class provides a controlled way for a truncate of the Qlik
- * application to occur. The first thread to encounter a REFRESH operation
- * will get the latch and cause QlikLoad.truncateApp() to be called. All
+ * This class provides a controlled way for a truncate within the Qlik
+ * application to occur. It can be instantiated both as a singleton
+ * to support a global truncate of all tables, and as individual instances
+ * to support table-by-table truncates.
+ *
+ * For a singleton, the first thread to encounter a REFRESH operation
+ * will get the latch and call QlikLoad.truncateApp(). All
  * other calls will receive "true", but the truncate function will not
- * be called. The latch will remain latched to prevent any other threads
+ * be called repeatedly. The latch will remain latched to prevent any other threads
  * from causing reload to occur until we begin CDC mode. At that point,
  * the latch is cleared and won't be reset until the next time we encounter
  * a REFRESH. Attunity will not begin CDC mode until all tables have
  * been (re)loaded, so this approach will work.
  *
- * CAUTION: a reload must occur on ALL TABLES. A partial reload will still
- * cause all data to be flushed from Qlik, which may not be what is desired.
+ * For table-by-table truncation, a local instance is called. Behavior is similar
+ * to what is described above, but only for one table.
  */
 public class TruncateLatch {
+    private static final Logger LOG = LoggerFactory.getLogger(TruncateLatch.class);
     private boolean latched;
-    private static TruncateLatch instance = new TruncateLatch();
+    private static TruncateLatch globalInstance = new TruncateLatch();
+
 
     /**
-     * Private constructor for the singleton.
+     * Constructor.
      */
-    private TruncateLatch() {
-        latched = false;
+    public TruncateLatch() {
+        this.latched = false;
     }
 
     /**
-     * return the instance.
-     * @return instance
+     * return the global instance. Getting a latch on this instance will cause a
+     * "truncate all" to occur.
+     *
+     * @return the global instance
      */
-    public static TruncateLatch getInstance() {
-        return instance;
+    public static TruncateLatch getGlobalInstance() {
+        return globalInstance;
     }
 
     /**
      * Get the latch if it isn't already set and call QlikLoad.truncateApp().
+     * @param tableName the name of the table we will truncate. "null" for truncate all.
      * @return value of latched. Will always be true, but only one
      * thread will cause the truncate to occur.
      */
-    public boolean getLatch() {
+    public boolean getLatch(String tableName, String hdr) {
         if (!latched) {
             // only synchronize if we are the thread making the change
             synchronized(this) {
                 if (!latched) {
+                    String script;
                     latched = true;
-                    // now send a "truncate"
-                    QlikLoad.getInstance().truncateApp();
+                    if (this == TruncateLatch.getGlobalInstance()) {
+                        // if this is the singleton, send a truncate all.
+                        script = String.format("ADD LOAD * INLINE [%n%s%n];", "fakecolumn");
+                        LOG.info("truncating all tables: {}", script);
+                    } else {
+                        // else send the truncate just for this table.
+                        script = String.format("%s: %nADD LOAD * INLINE [%n%s%n];", tableName, hdr);
+                        LOG.info("truncating table: {}", script);
+                    }
+                    QlikLoad.getInstance().truncateApp(script);
                 }
             }
         }

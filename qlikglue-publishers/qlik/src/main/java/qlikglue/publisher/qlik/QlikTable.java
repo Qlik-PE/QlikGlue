@@ -35,16 +35,20 @@ public class QlikTable {
 
     private int opCounter = 0;
     private int totalOps = 0;
+    private int lastCounter = 0;
     private boolean bufferEmpty;
     private ByteArrayOutputStream baos;
     private QlikLoad qlikLoad;
+    private TruncateLatch truncateLatch;
     private static final String NEWLINE = System.getProperty("line.separator");
     private static final char EMPTY ='\0';
     private static final char COMMA =',';
 
 
     private String tableName;
-    
+    private String shortTableName;
+    private String columnQualifier;
+
 
     /**
      * Construct an instance that represents this table.
@@ -55,8 +59,13 @@ public class QlikTable {
         super();
         
         this.tableName = tableName;
+        // get just the table name without the "schema." prefix.
+        shortTableName = tableName.substring(tableName.lastIndexOf('.')+1);
+        columnQualifier = shortTableName + "_";
         qlikLoad = QlikLoad.getInstance();
         baos = new ByteArrayOutputStream();
+        //truncateLatch = new TruncateLatch();
+        truncateLatch = TruncateLatch.getGlobalInstance();
         init();
     }
     
@@ -81,10 +90,15 @@ public class QlikTable {
      */
     public void sendBuffer() {
         if (opCounter > 0) {
-            appendBUffer("];" + NEWLINE + NEWLINE);
-            qlikLoad.appendBuffer(baos);
-            opCounter = 0;
-            resetBuffer();
+            synchronized(baos) {
+                LOG.trace("Table: {} Last counter: {} Total Ops: {}", tableName, lastCounter, totalOps);
+                appendBuffer("];" + NEWLINE + NEWLINE);
+                //qlikLoad.appendBuffer(baos);
+                qlikLoad.sendBuffer(baos);
+                lastCounter = totalOps;
+                opCounter = 0;
+                resetBuffer();
+            }
         }
     }
 
@@ -96,24 +110,25 @@ public class QlikTable {
      */
     public void addOperation(DownstreamOperation op) {
 
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("event #{}", totalOps);
-        }
-        if (op.getOpTypeId() == DownstreamOperation.REFRESH_ID) {
-            TruncateLatch.getInstance().getLatch();
-        } else {
-            TruncateLatch.getInstance().clearLatch();
-        }
-        if (bufferEmpty) {
-            bufferEmpty = false;
-            //appendBUffer(String.format("%s: %nADD LOAD * INLINE [%n%s%n", tableName, formatHdr(op)));
-            appendBUffer(String.format("%s: %nADD ONLY LOAD * INLINE [%n%s%n", tableName, formatHdr(op)));
-        }
+        synchronized(baos) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("event #{}", totalOps);
+            }
+            if (op.getOpTypeId() == DownstreamOperation.REFRESH_ID) {
+                truncateLatch.getLatch(shortTableName, formatHdr(op));
+            } else {
+                truncateLatch.clearLatch();
+            }
+            if (bufferEmpty) {
+                bufferEmpty = false;
+                appendBuffer(String.format("%s: %nADD ONLY LOAD * INLINE [%n%s%n", shortTableName, formatHdr(op)));
+            }
 
-        appendBUffer(formatRow(op));
+            appendBuffer(formatRow(op));
 
-        opCounter++;
-        totalOps++;
+            opCounter++;
+            totalOps++;
+        }
     }
 
     /**
@@ -128,7 +143,7 @@ public class QlikTable {
      * Append this string to the output buffer.
      * @param s
      */
-    private void appendBUffer(String s) {
+    private void appendBuffer(String s) {
         try {
             baos.write(s.getBytes());
         } catch (IOException e) {
@@ -199,22 +214,23 @@ public class QlikTable {
             delimiter = COMMA;
         }
 
-
-        ArrayList<DownstreamColumnMetaData> colsMeta = op.getTableMeta().getColumns();
         ArrayList<DownstreamColumnData> cols = op.getColumns();
 
-
-        DownstreamColumnData col;
+        String col;
         delimiter = EMPTY;
         for (int i = 0; i < cols.size(); i++) {
-            col = cols.get(i);
+            col = cols.get(i).getBDName();
+
+            if (col.startsWith(columnQualifier)) {
+               col = col.replaceFirst("_", ".");
+            }
             /*
              * col data and meta data should always be in the same order.
              * I would check, but we will be doing this for every column on every
              * row, which would be very expensive.
              */
             if (delimiter != EMPTY) hdrContent.append(delimiter);
-            hdrContent.append(col.getBDName());
+            hdrContent.append(col);
             delimiter = COMMA;
         }
 

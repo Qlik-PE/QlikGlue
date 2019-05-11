@@ -99,7 +99,7 @@ public class PropertyManagement {
         rval = properties.getProperty(property);
         
         if (rval == null) {
-            LOG.info("getProperty: Property not set: {}. Using default:", 
+            LOG.info("getProperty: Property not set: {}. Using default value: {}",
                       property, defaultValue);
             properties.setProperty(property, defaultValue);
             rval = defaultValue;

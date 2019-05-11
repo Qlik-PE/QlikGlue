@@ -107,11 +107,18 @@ public class QlikSocket  {
            reconnect();
         }
         try {
+            if (pendingResponse) {
+                LOG.warn("countDownLatch wait in progress");
+                countDownLatch.await();
+            }
+
             countDownLatch = new CountDownLatch(1);
             // TODO: should we use getAsyncRemote() ???
-            this.userSession.getBasicRemote().sendText(jsonMessage);
             pendingResponse = true;
-            countDownLatch.await(5L, TimeUnit.SECONDS);
+            this.userSession.getBasicRemote().sendText(jsonMessage);
+            countDownLatch.await(15L, TimeUnit.SECONDS);
+            countDownLatch = null;
+
         }catch (InterruptedException e) {
            LOG.warn("CountDownLatch timer expired", e);
         } catch (IOException e) {
@@ -201,8 +208,8 @@ public class QlikSocket  {
                 if (!previousMessage.equals(message)) {
                     previousMessage = messageResult;
                     messageResult = message;
-                    countDownLatch.countDown();
                     pendingResponse = false;
+                    countDownLatch.countDown();
                 } else {
                     LOG.warn("Duplicate message received: " + message);
                 }

@@ -19,6 +19,7 @@ import com.fasterxml.jackson.databind.node.JsonNodeType;
 import org.apache.commons.lang.math.NumberUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qlikglue.encoder.EncoderProperties;
 
 import java.io.IOException;
 import java.sql.Types;
@@ -39,6 +40,9 @@ public class JsonRecord {
     private static final String TXID = "transactionId";
     private static final String CSN = "changeSequence";
 
+    private boolean includeKeyField;
+    private String keyName;
+
     private ObjectMapper mapper;
     JsonNode rootNode;
 
@@ -50,6 +54,7 @@ public class JsonRecord {
     private String userTokens;
     private String txId;
     private String changeSequence;
+    private String key;
     private List<JsonField> data;
     private List<JsonField> before = null;
 
@@ -63,6 +68,11 @@ public class JsonRecord {
      * @param record the Json record we want to parse.
      */
     public JsonRecord(String topic, int partition, long offset, String key, String record) {
+        includeKeyField = PropertyManagement.getProperties().asBoolean(EncoderProperties.KEY_COLUMN,
+                EncoderProperties.KEY_COLUMN_DEFAULT);
+        keyName = PropertyManagement.getProperties().getProperty(EncoderProperties.KEY_COLUMN_NAME,
+                EncoderProperties.KEY_COLUMN_NAME_DEFAULT);
+
         mapper = new ObjectMapper();
         try {
             rootNode = mapper.readTree(record);
@@ -70,7 +80,13 @@ public class JsonRecord {
            LOG.error("Json parse error", e);
         }
 
+        this.key = key;
         tableName = topic;
+
+        if (includeKeyField) {
+            data.add(new JsonField(keyName, key, Types.VARCHAR));
+        }
+
         JsonNode headerNode = rootNode.findValue(HEADER);
         if ((headerNode != null) && (headerNode.getNodeType() == JsonNodeType.OBJECT)) {
             // We have a "header" node, so get the header values.
@@ -89,7 +105,6 @@ public class JsonRecord {
             userTokens = "NONE";
         }
 
-        JsonField keyField = new JsonField("message_key", key, Types.VARCHAR);
         JsonNode dataNode = rootNode.findValue(DATA);
         if ((dataNode != null) && (dataNode.getNodeType() == JsonNodeType.OBJECT)) {
             // We have a "data" node, so get the values of the columns.
@@ -104,7 +119,6 @@ public class JsonRecord {
             // didn't find subrecords, so assume this is flat
             data = parseRecord(rootNode);
         }
-        data.add(keyField);
 
     }
 
@@ -212,6 +226,14 @@ public class JsonRecord {
      */
     public String getUserTokens() {
         return userTokens;
+    }
+
+    /**
+     * Get the Kafka message key
+     * @return the message key
+     */
+    public String getKey() {
+        return key;
     }
 
     /**

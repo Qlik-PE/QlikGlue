@@ -88,13 +88,16 @@ public class QlikPublisher extends DataAccumulator implements QlikGluePublisher 
         opCount = 0;
     }
 
+    /**
+     * Called when the DataAccumulator timer expires.
+     */
     protected void sendBuffer() {
         // send any queued operations on to QlikSocket
         for(QlikTable qlikTable : tables.values()) {
             qlikTable.sendBuffer();
         }
         // send the buffer to the target
-        qlikLoad.sendBuffer();
+        //qlikLoad.sendBuffer();
 
         resetBuffer();
     }

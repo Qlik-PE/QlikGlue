@@ -52,6 +52,7 @@ public class QlikLoad {
 
         maxBufferSize = properties.asInt(QlikLoadProperties.QLIKLOAD_MAXBUFFERSIZE,
                 QlikLoadProperties.QLIKLOAD_MAXBUFFERSIZE_DEFAULT);
+        maxBufferSize = 5;
         URI = properties.getProperty(QlikLoadProperties.QLIKLOAD_URL,
                 QlikLoadProperties.QLIKLOAD_URL_DEFAULT);
         appName = properties.getProperty(QlikLoadProperties.QLIKLOAD_APPNAME,
@@ -81,22 +82,22 @@ public class QlikLoad {
     /**
      * Send the contents of baos to the web socket
      */
-    public void sendBuffer() {
-        synchronized (baos) {
-            if (baos.size() > 0) {
+    public void sendBuffer(ByteArrayOutputStream sendbaos) {
+        synchronized (this) {
+            if (sendbaos.size() > 0) {
                 if (!testOnly) {
                     String s;
                     try {
-                        s = baos.toString("UTF-8");
+                        s = sendbaos.toString("UTF-8");
                     } catch (UnsupportedEncodingException e) {
                         LOG.error("Baos encoding exception", e);
                         s = "BAOS encoding exception";
                     }
                     sendLoadScript(s, true);
                 } else {
-                    logToFile();
+                    logToFile(sendbaos);
                 }
-                baos.reset();
+                sendbaos.reset();
             }
         }
     }
@@ -107,30 +108,34 @@ public class QlikLoad {
      * @param qlikTableBaos a ByteArrayOutputStream
      */
     public void appendBuffer(ByteArrayOutputStream qlikTableBaos) {
-        synchronized (baos) {
+        synchronized (this) {
             totalOps++;
+            sendBuffer(qlikTableBaos);
+            /*
             try {
                 qlikTableBaos.writeTo(baos);
                 if (baos.size() >= maxBufferSize) {
-                    sendBuffer();
+                    sendBuffer(baos);
                     resetBuffer();
                 }
             } catch (IOException e) {
                 LOG.error("error adding message", e);
             }
+            */
         }
     }
 
     /**
      * Truncate / clear data in the app so we can do a reload.
      */
-    public void truncateApp() {
-        LOG.info("truncating Qlik app");
-        String script = "ADD ONLY LOAD * INLINE [ ];";
-        if (!testOnly) {
-            sendLoadScript(script, false);
-        } else {
-           System.out.println("truncating app: " + script);
+    public void truncateApp(String script) {
+        synchronized(this) {
+            LOG.info("truncating Qlik app: {}", script);
+            if (!testOnly) {
+                sendLoadScript(script, false);
+            } else {
+                System.out.println("truncating app: " + script);
+            }
         }
     }
 
@@ -162,19 +167,20 @@ public class QlikLoad {
                 if (jsonResponse.isError()) {
                     System.out.println(jsonResponse.getError());
                 } else {
-                    request = docApi.doReload(qHandle, 0, partial, false);
-                    System.out.println("DoReload request: " + request);
-                    response = qlikSocket.sendMessage(request);
-                    System.out.println("DoReload response: " + response);
-                    request = docApi.doSave(qHandle);
-                    System.out.println("DoSave request: " + request);
-                    response = qlikSocket.sendMessage(request);
-                    System.out.println("DoSave response: " + response);
+                        request = docApi.doReload(qHandle, 0, partial, false);
+                        System.out.println("DoReload request: " + request);
+                        response = qlikSocket.sendMessage(request);
+                        System.out.println("DoReload response: " + response);
+                        request = docApi.doSave(qHandle);
+                        System.out.println("DoSave request: " + request);
+                        response = qlikSocket.sendMessage(request);
+                        System.out.println("DoSave response: " + response);
                 }
 
             }
         }
     }
+
 
     /**
      * Reset the output buffer to prepare for the next batch.
@@ -187,11 +193,11 @@ public class QlikLoad {
     /**
      * for testing purposes ... log to a file instead of sending to a socket.
      */
-    private void logToFile() {
-        String filename = "/tmp/QlikLoad" + totalOps;
-        try(OutputStream outputStream = new FileOutputStream(filename)) {
+    private void logToFile(ByteArrayOutputStream logbaos) {
+        String filename = "/tmp/QlikLoad.dat"; // + totalOps;
+        try(OutputStream outputStream = new FileOutputStream(filename, true)) {
             System.out.println("logging BAOS content to file: " + filename);
-            baos.writeTo(outputStream);
+            logbaos.writeTo(outputStream);
         } catch (FileNotFoundException e) {
             LOG.error("error writing buffer to file", e);
         } catch (IOException e) {
@@ -203,7 +209,7 @@ public class QlikLoad {
      * Call this method to flush buffers, terminate the thread, and exit.
      */
     public void cleanup() {
-        sendBuffer();
+        sendBuffer(baos);
         shutdown();
     }
 
